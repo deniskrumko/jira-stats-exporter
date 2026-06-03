@@ -1,10 +1,12 @@
 import os
-from dataclasses import dataclass
+
+from pydantic import BaseModel, ConfigDict
 
 
-@dataclass(frozen=True)
-class JiraConfig:
+class JiraConfig(BaseModel):
     """Configuration required to connect to Jira."""
+
+    model_config = ConfigDict(frozen=True)
 
     base_url: str
     api_token: str

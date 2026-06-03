@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from jira import JiraAPIClient
+from jira.client import JiraAPIClient
 
 
 class JiraCustomFieldsClient:
@@ -16,28 +16,40 @@ class JiraCustomFieldsClient:
         """Initialize class instance."""
         self._client = client or JiraAPIClient()
         self._cache_path = cache_path
-        self._fields: dict[str, str] | None = None
+
+        self._custom_fields: dict[str, str] | None = None
+        self._name_to_custom_field: dict[str, str] | None = None
 
     def get_fields(self) -> dict[str, str]:
         """Return cached or freshly fetched Jira custom field ID-to-name mappings."""
-        if self._fields is not None:
-            return self._fields
+        if self._custom_fields is not None:
+            return self._custom_fields
 
         if self._cache_path.exists():
             with self._cache_path.open(encoding="utf-8") as file:
                 payload = json.load(file)
             if not isinstance(payload, dict):
                 raise RuntimeError(f"Unexpected cache format: {self._cache_path}")
-            self._fields = {str(key): str(value) for key, value in payload.items()}
-            return self._fields
+            self._custom_fields = {str(key): str(value) for key, value in payload.items()}
+            return self._custom_fields
 
         fields = self._fetch_fields()
         self._cache_path.parent.mkdir(parents=True, exist_ok=True)
         with self._cache_path.open("w", encoding="utf-8") as file:
             json.dump(fields, file, indent=2, ensure_ascii=False, sort_keys=True)
             file.write("\n")
-        self._fields = fields
+        self._custom_fields = fields
         return fields
+
+    def get_field_by_name(self, field_name: str) -> str:
+        """Return a custom field ID by name or the original field name."""
+        if self._name_to_custom_field is None:
+            self._name_to_custom_field = {
+                mapped_field_name: field_id
+                for field_id, mapped_field_name in self.get_fields().items()
+            }
+
+        return self._name_to_custom_field.get(field_name, field_name)
 
     def replace(
         self,

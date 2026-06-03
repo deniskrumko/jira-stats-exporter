@@ -6,7 +6,7 @@
 - Source code lives under `src/`
 - `src/app/cli.py` defines the CLI entry point
 - `src/jira/` contains Jira configuration and HTTP client logic
-- `src/custom_fields/` contains Jira custom field mapping logic
+- `src/jira/custom_fields.py` contains Jira custom field mapping logic
 
 ## Build, Test, and Development Commands
 
@@ -20,12 +20,15 @@ The CLI requires `JIRA_BASE_URL` and `JIRA_API_TOKEN`. If they are not exported 
 ## Coding Style
 
 - Add docstrings to created classes, methods and functions. Docstrings only in English. Always single-line docstrings, without args/return. Only one-line summary. For `__init__` methods write """Initialize class instance.""".
+- Use Pydantic `BaseModel` for structured data models instead of dataclasses.
 - Use python 3.13 syntax
 - Run `make fmt` to format code
 
 ## Testing Guidelines
 
-- No tests for now
+- Use `pytest` for unit tests
+- Add tests to `tests/` and use only plain files without sub-dir. For example: `tests/test_jira.py`.
+- Add fixtures to `tests/conftest.py`. Prefer using fixtures.
 
 ## Security & Configuration Tips
 

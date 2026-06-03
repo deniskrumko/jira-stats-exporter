@@ -9,4 +9,8 @@ lint:
 	@uv run --dev ruff check .
 	@uv run --dev ty check .
 
-check: fmt lint
+test:
+	@echo "🔧  Testing..."
+	@uv run --dev pytest
+
+check: fmt lint test
