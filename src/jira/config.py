@@ -9,11 +9,7 @@ class JiraConfig:
 
     @classmethod
     def from_env(cls) -> "JiraConfig":
-        missing = [
-            name
-            for name in ("JIRA_BASE_URL", "JIRA_API_TOKEN")
-            if not os.getenv(name)
-        ]
+        missing = [name for name in ("JIRA_BASE_URL", "JIRA_API_TOKEN") if not os.getenv(name)]
         if missing:
             joined = ", ".join(missing)
             raise RuntimeError(f"Missing required env vars: {joined}")

@@ -1,0 +1,12 @@
+fmt:
+	@echo "🔧  Formatting..."
+	@uv run --dev ruff format .
+	@uv run --dev ruff check --fix .
+
+lint:
+	@echo "🔧  Linting..."
+	@uv run --dev ruff format --check . || (echo "Run make fmt" && exit 1)
+	@uv run --dev ruff check .
+	@uv run --dev ty check .
+
+check: fmt lint
