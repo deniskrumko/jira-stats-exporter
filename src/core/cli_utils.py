@@ -1,12 +1,19 @@
 BOLD = "\033[1m"
 YELLOW = "\033[33m"
+ATTENTION = "\033[30;41m"
+GOOD = "\033[30;42m"
 DIMMED = "\033[2m"
 RESET = "\033[0m"
 
 
-def stat_line(label: str, value: str) -> str:
+def stat_line(
+    label: str,
+    value: str,
+    label_color: str = BOLD,
+    value_color: str = YELLOW,
+) -> str:
     """Format a CLI statistic line with ANSI colors."""
-    return f"{BOLD}{label}:{RESET} {YELLOW}{value}{RESET}"
+    return f"{label_color}{label}:{RESET} {value_color}{value}{RESET}"
 
 
 def bold(value: str) -> str:

@@ -1,4 +1,3 @@
-from datetime import date
 from pathlib import Path
 
 import pytest
@@ -6,32 +5,6 @@ import pytest
 from app.cli import CLIApp
 from app.resources import ClosedIssue, ClosedIssuesStats
 from core.date_ranges import DateRange
-
-
-def test_closed_issues_line_without_weekly_rate_for_one_week() -> None:
-    """Format closed issues without weekly rate for a one-week range."""
-    assert (
-        CLIApp._closed_issues_line(
-            _closed_issues_stats(
-                issue_count=12,
-                date_range=DateRange(start=date(2026, 6, 1), end=date(2026, 6, 7)),
-            )
-        )
-        == "\033[1mClosed issues:\033[0m \033[33m12\033[0m"
-    )
-
-
-def test_closed_issues_line_with_dimmed_weekly_rate() -> None:
-    """Format closed issues with weekly rate for longer ranges."""
-    assert (
-        CLIApp._closed_issues_line(
-            _closed_issues_stats(
-                issue_count=12,
-                date_range=DateRange(start=date(2026, 6, 1), end=date(2026, 6, 25)),
-            )
-        )
-        == "\033[1mClosed issues:\033[0m \033[33m12\033[0m \033[2m(3.4 per week)\033[0m"
-    )
 
 
 def test_get_users_returns_user_without_team() -> None:

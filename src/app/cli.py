@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 from app.app import TIME_METRICS, JiraStatsExporter
 from app.resources import ClosedIssuesStats
-from core.cli_utils import bold, dimmed, stat_line
+from core.cli_utils import ATTENTION, GOOD, YELLOW, bold, dimmed, stat_line
 from core.date_ranges import DateRange
 from core.utils import format_seconds
 
@@ -51,7 +51,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     """Run the Jira stats exporter CLI."""
     load_dotenv(DEFAULT_ENV_PATH)
-    CLIApp().run(build_parser().parse_args())
+    try:
+        CLIApp().run(build_parser().parse_args())
+    except KeyboardInterrupt:
+        print("\nGoodbye!")
 
 
 class CLIApp:
@@ -136,7 +139,22 @@ class CLIApp:
     @staticmethod
     def _closed_issues_line(stats: ClosedIssuesStats) -> str:
         """Format the closed issues statistic line."""
-        line = stat_line("Closed issues", str(len(stats.issues)))
+        issue_count = len(stats.issues)
+        value_color = YELLOW
+
+        # No tasks closed in 3 days - bad
+        if issue_count == 0 and stats.date_range.days >= 3:
+            value_color = ATTENTION
+
+        # More than 3 tasks per week - good
+        elif issue_count > 3 and stats.date_range.days <= 7:
+            value_color = GOOD
+
+        line = stat_line(
+            "Closed issues",
+            str(issue_count),
+            value_color=value_color,
+        )
         if stats.closed_issues_per_week is None:
             return line
 

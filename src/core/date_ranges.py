@@ -17,6 +17,11 @@ class DateRange(BaseModel):
         """Return the formatted date range."""
         return f"{self.start.isoformat()} – {self.end.isoformat()}"
 
+    @property
+    def days(self) -> int:
+        """Return the number of days in the date range."""
+        return (self.end - self.start).days + 1
+
     @classmethod
     def resolve(
         cls,
