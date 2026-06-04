@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, overload
 
 from jira.client import JiraAPIClient
 
@@ -78,11 +78,25 @@ class JiraCustomFieldsClient:
 
         return fields
 
+    @overload
     def _replace_custom_field_keys(
         self,
-        payload: Any,
+        payload: dict[str, Any],
         fields: dict[str, str],
-    ) -> Any:
+    ) -> dict[str, Any]: ...
+
+    @overload
+    def _replace_custom_field_keys(
+        self,
+        payload: list[dict[str, Any]],
+        fields: dict[str, str],
+    ) -> list[dict[str, Any]]: ...
+
+    def _replace_custom_field_keys(
+        self,
+        payload: list | dict,
+        fields: dict[str, str],
+    ) -> list | dict:
         """Recursively replace Jira custom field keys inside a payload."""
         if isinstance(payload, dict):
             replaced: dict[str, Any] = {}
@@ -97,4 +111,4 @@ class JiraCustomFieldsClient:
         if isinstance(payload, list):
             return [self._replace_custom_field_keys(item, fields) for item in payload]
 
-        return payload
+        raise TypeError(f"Unexpected payload type: {type(payload)}")

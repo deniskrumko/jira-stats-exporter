@@ -107,7 +107,7 @@ class JiraStatsExporter:
         return name
 
 
-def _trim_summary(value: Any) -> str | None:
+def _trim_summary(value: str | None) -> str | None:
     """Return a trimmed issue summary."""
     if not isinstance(value, str):
         return None

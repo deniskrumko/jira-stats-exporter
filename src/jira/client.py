@@ -80,7 +80,7 @@ class JiraAPIClient:
             raise RuntimeError(f"Unexpected Jira response for {url}")
         return payload
 
-    def _get_json(self, url: str) -> Any:
+    def _get_json(self, url: str) -> dict | list:
         """Fetch a Jira endpoint and return the decoded JSON response."""
         with httpx.Client(
             base_url=self._config.base_url,

@@ -28,7 +28,7 @@ class DateRange(BaseModel):
         from_date: str | None = None,
         to_date: str | None = None,
         year: int | None = None,
-        **kwargs: Any,
+        **kwargs: Any,  # noqa
     ) -> "DateRange":
         """Resolve CLI date options into an inclusive date range."""
         selected = [
