@@ -1,23 +1,11 @@
 import os
+from functools import partial
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class JiraAPIConfig(BaseModel):
     """Configuration required to connect to Jira."""
 
-    base_url: str
-    api_token: str
-
-    @classmethod
-    def from_env(cls) -> "JiraAPIConfig":
-        """Create Jira configuration from required environment variables."""
-        missing = [name for name in ("JIRA_BASE_URL", "JIRA_API_TOKEN") if not os.getenv(name)]
-        if missing:
-            joined = ", ".join(missing)
-            raise RuntimeError(f"Missing required env vars: {joined}")
-
-        return cls(
-            base_url=os.environ["JIRA_BASE_URL"].rstrip("/"),
-            api_token=os.environ["JIRA_API_TOKEN"],
-        )
+    api_token: str | None = Field(default_factory=partial(os.getenv, "JIRA_API_TOKEN"))
+    base_url: str | None = Field(default_factory=partial(os.getenv, "JIRA_BASE_URL"))

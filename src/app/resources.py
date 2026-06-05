@@ -1,7 +1,6 @@
 from enum import StrEnum
-from typing import Iterator
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from core.date_ranges import DateRange
 
@@ -23,9 +22,19 @@ class Team(BaseModel):
     """Jira team."""
 
     name: str
-    shortcut: str
     users: list[str]
     default: bool = False
+
+    def __str__(self) -> str:
+        return self.name
+
+    @model_validator(mode="after")
+    def validate_users(self) -> "Team":
+        """Validate configured team users."""
+        if not self.users:
+            raise ValueError(f"Team has no users: {self.name}")
+
+        return self
 
 
 class Issue(BaseModel):
@@ -40,17 +49,13 @@ class Issue(BaseModel):
         return self.url.split("/")[-1]
 
 
-class Issues(BaseModel):
+class IssueGroup(BaseModel):
     """Jira issues and aggregate timing stats."""
 
     responsible: str
     date_range: DateRange
     issues: list[Issue]
     avg_time_in_status: dict[str, int]
-
-    def __iter__(self) -> Iterator[Issue]:  # ty: ignore[invalid-method-override]
-        """Iterate over issues."""
-        return iter(self.issues)
 
     @property
     def issues_per_week(self) -> float | None:

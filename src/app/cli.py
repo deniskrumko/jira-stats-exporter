@@ -2,18 +2,16 @@ import argparse
 import json
 from pathlib import Path
 
-from dotenv import load_dotenv
 from rich import print
 from rich.panel import Panel
 
 from app.app import App
 from app.config import AppConfig, CLIConfig
-from app.resources import Issues
+from app.resources import IssueGroup
 from core.cli_utils import print_stat
 from core.date_ranges import DateRange
 from core.utils import format_seconds, truncate
 
-DEFAULT_ENV_PATH = Path.home() / ".secrets" / "jira-stats-exporter" / ".env"
 DEFAULT_TEAM_MARKER = "__default__"
 
 
@@ -120,7 +118,6 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     """Run the Jira stats exporter CLI."""
-    load_dotenv(DEFAULT_ENV_PATH)
     try:
         CLIApp().run(build_parser().parse_args())
     except KeyboardInterrupt:
@@ -176,17 +173,18 @@ class CLIApp:
                 raise SystemExit(str(error)) from error
 
         if team:
-            print(Panel.fit(f"[bold green]Team: {team.name}[/]", border_style="green"), end="\n\n")
+            print(Panel.fit(f"[bold green]Team: {team}[/]", border_style="green"), end="\n\n")
 
         for index, user in enumerate(users):
             if index > 0:
                 print()
-            stats = self.app.get_closed_issues(
+
+            issue_group = self.app.get_closed_issues(
                 user,
                 date_range,
                 with_summary=args.issues,
             )
-            self._print_issues(stats, show_details=args.issues)
+            self._print_issue_group(issue_group, show_details=args.issues)
 
     def _init_app(self, args: argparse.Namespace) -> None:
         """Initialize Jira stats exporter."""
@@ -197,8 +195,9 @@ class CLIApp:
             config = AppConfig.load(args.config)
             self._cli_config = config.cli
             self._app = App(config=config)
-        except (FileNotFoundError, ValueError) as error:
-            raise SystemExit(str(error)) from error
+        except Exception as e:
+            print(f"[red]Failed to init app:\n{e}[/]")
+            exit(1)
 
     @property
     def app(self) -> App:
@@ -207,18 +206,18 @@ class CLIApp:
             raise RuntimeError("Jira stats exporter is not initialized")
         return self._app
 
-    def _print_issues(self, issues: Issues, show_details: bool = True) -> None:
+    def _print_issue_group(self, issue_group: IssueGroup, show_details: bool = True) -> None:
         """Print closed issue statistics."""
-        print_stat("Date Range", issues.date_range.colored_string, value_color=None)
-        print_stat("User", issues.responsible)
-        self._print_issues_number(issues)
+        print_stat("Date Range", issue_group.date_range.colored_string, value_color=None)
+        print_stat("User", issue_group.responsible)
+        self._print_issues_number(issue_group)
 
-        for metric_name, avg_time in issues.avg_time_in_status.items():
+        for metric_name, avg_time in issue_group.avg_time_in_status.items():
             print_stat(f"Avg {metric_name}", format_seconds(avg_time))
 
         if show_details:
             print("\n[bold]Issues:[/]")
-            for issue in issues:
+            for issue in issue_group.issues:
                 summary = truncate(issue.summary or "", self._cli_config.max_summary_length)
                 print(f"[cyan bold link={issue.url}]{issue.code}[/]: {summary}")
 
@@ -228,20 +227,20 @@ class CLIApp:
         print(json.dumps(payload, indent=2, ensure_ascii=False))
 
     @staticmethod
-    def _print_issues_number(issues: Issues, display_name: str = "Issues") -> None:
+    def _print_issues_number(issue_group: IssueGroup, display_name: str = "Issues") -> None:
         """Format the closed issues statistic line."""
         value_color = "yellow not b"
 
         # No tasks closed in 3 days - bad
-        if issues.count == 0 and issues.date_range.days >= 3:
+        if issue_group.count == 0 and issue_group.date_range.days >= 3:
             value_color = "red"
 
         # More than 3 tasks per week - good
-        elif issues.count > 3 and issues.date_range.days <= 7:
+        elif issue_group.count > 3 and issue_group.date_range.days <= 7:
             value_color = "green"
 
-        line = str(issues.count)
-        if issues.issues_per_week:
-            line += f" [dim]({issues.issues_per_week:.1f}/week)[/dim]"
+        line = str(issue_group.count)
+        if issue_group.issues_per_week:
+            line += f" [dim]({issue_group.issues_per_week:.1f}/week)[/dim]"
 
         print_stat(display_name, line, value_color=value_color)

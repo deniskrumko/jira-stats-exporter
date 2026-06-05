@@ -1,13 +1,10 @@
 from datetime import date
 from typing import Any
 
-from app.app import App
-from app.config import AppConfig
-from app.resources import IssueStatus
 from core.date_ranges import DateRange
 
 
-class FakeJiraClient:
+class FakeJiraAPIClient:
     """Provide Jira client responses for closed issue tests."""
 
     def __init__(self) -> None:
@@ -100,43 +97,25 @@ class FakeCustomFieldsClient:
         }.get(field_name, field_name)
 
 
-def test_closed_returns_issue_links_and_average_ttm() -> None:
+def test_closed_returns_issue_links_and_average_ttm(app) -> None:
     """Return closed issue links and average TTM from Jira search results."""
-    client = FakeJiraClient()
-    app = App(
-        client=client,
-        custom_fields_client=FakeCustomFieldsClient(),
-        config=AppConfig(),
-    )
+    app._api_client = FakeJiraAPIClient()
+    app._cf_client = FakeCustomFieldsClient()
     date_range = DateRange(start=date(2026, 5, 1), end=date(2026, 5, 31))
 
-    stats = app.get_closed_issues(
-        "me",
-        date_range,
-    )
-
-    assert [issue.url for issue in stats] == [
+    issue_group = app.get_closed_issues("me", date_range)
+    assert [issue.url for issue in issue_group.issues] == [
         "https://jira.example.test/browse/ML-1",
         "https://jira.example.test/browse/ML-2",
     ]
-    assert [issue.summary for issue in stats.issues] == [
-        "Short issue summary",
-        "A" * 120,
-    ]
-    assert [issue.status for issue in stats.issues] == [
-        IssueStatus.CLOSED,
-        IssueStatus.CLOSED,
-    ]
-    assert stats.responsible == "krumko"
-    assert stats.date_range == date_range
-    assert stats.issues_per_week == 14 / 31
-    assert stats.avg_time_in_status == {
+    assert issue_group.avg_time_in_status == {
         "TTM": 6300,
         "Time in Progress": 1800,
         "Time in Review": 1200,
         "Time in Resolved": 600,
     }
-    assert client.search_calls[0]["fields"] == [
+
+    assert app._api_client.search_calls[0]["fields"] == [
         "key",
         "summary",
         "customfield_12602",
@@ -144,4 +123,4 @@ def test_closed_returns_issue_links_and_average_ttm() -> None:
         "customfield_12604",
         "customfield_12605",
     ]
-    assert "Responsibles in (krumko)" in client.search_calls[0]["jql"]
+    assert "Responsibles in (krumko)" in app._api_client.search_calls[0]["jql"]

@@ -10,21 +10,24 @@ class JiraCustomFieldsClient:
 
     def __init__(
         self,
-        client: JiraAPIClient | None = None,
-        cache_path: Path = Path(".cache") / "custom_fields.json",
+        api: JiraAPIClient | None = None,
+        cache_path: Path = Path("/tmp/jira_stats_exporter") / "custom_fields.json",
+        custom_fields: dict[str, str] | None = None,
     ) -> None:
         """Initialize class instance."""
-        self._client = client or JiraAPIClient()
+        self._api = api
         self._cache_path = cache_path
 
-        self._custom_fields: dict[str, str] | None = None
+        self._custom_fields: dict[str, str] | None = custom_fields
         self._name_to_custom_field: dict[str, str] | None = None
 
     def get_fields(self) -> dict[str, str]:
         """Return cached or freshly fetched Jira custom field ID-to-name mappings."""
+        # Use inner cache
         if self._custom_fields is not None:
             return self._custom_fields
 
+        # Use file cache
         if self._cache_path.exists():
             with self._cache_path.open(encoding="utf-8") as file:
                 payload = json.load(file)
@@ -33,11 +36,13 @@ class JiraCustomFieldsClient:
             self._custom_fields = {str(key): str(value) for key, value in payload.items()}
             return self._custom_fields
 
-        fields = self._fetch_fields()
+        # Use API to fetch fields
+        fields = self._fetch_fields_from_api()
         self._cache_path.parent.mkdir(parents=True, exist_ok=True)
         with self._cache_path.open("w", encoding="utf-8") as file:
             json.dump(fields, file, indent=2, ensure_ascii=False, sort_keys=True)
             file.write("\n")
+
         self._custom_fields = fields
         return fields
 
@@ -53,17 +58,20 @@ class JiraCustomFieldsClient:
 
     def replace(
         self,
-        payload: dict[str, Any],
+        payload: dict,
         fields: dict[str, str] | None = None,
-    ) -> dict[str, Any]:
+    ) -> dict:
         """Replace custom field IDs in a Jira payload with human-readable names."""
         custom_fields = fields if fields is not None else self.get_fields()
         return self._replace_custom_field_keys(payload, custom_fields)
 
-    def _fetch_fields(self) -> dict[str, str]:
+    def _fetch_fields_from_api(self) -> dict[str, str]:
         """Fetch Jira custom field mappings from Jira field metadata."""
+        if self._api is None:
+            raise RuntimeError("Jira API client not initialized")
+
         fields: dict[str, str] = {}
-        for field in self._client.fields():
+        for field in self._api.fields():
             if not isinstance(field, dict):
                 continue
 
@@ -81,22 +89,22 @@ class JiraCustomFieldsClient:
     @overload
     def _replace_custom_field_keys(
         self,
-        payload: dict[str, Any],
+        payload: dict,
         fields: dict[str, str],
-    ) -> dict[str, Any]: ...
+    ) -> dict: ...
 
     @overload
     def _replace_custom_field_keys(
         self,
-        payload: list[dict[str, Any]],
+        payload: list,
         fields: dict[str, str],
-    ) -> list[dict[str, Any]]: ...
+    ) -> list: ...
 
     def _replace_custom_field_keys(
         self,
-        payload: list | dict,
+        payload: list | dict | str,
         fields: dict[str, str],
-    ) -> list | dict:
+    ) -> list | dict | str:
         """Recursively replace Jira custom field keys inside a payload."""
         if isinstance(payload, dict):
             replaced: dict[str, Any] = {}
@@ -111,4 +119,4 @@ class JiraCustomFieldsClient:
         if isinstance(payload, list):
             return [self._replace_custom_field_keys(item, fields) for item in payload]
 
-        raise TypeError(f"Unexpected payload type: {type(payload)}")
+        return payload

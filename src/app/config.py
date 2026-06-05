@@ -4,24 +4,12 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, model_validator
 
+from jira.config import JiraAPIConfig
+
+from .resources import Team
+
 CONFIG_ENV_VAR = "JIRA_STATS_EXPORTER_CONFIG"
 DEFAULT_CONFIG_FILE_NAME = "config.toml"
-
-
-class TeamConfig(BaseModel):
-    """Configure a Jira team."""
-
-    name: str
-    shortcut: str
-    default: bool = False
-    users: list[str] = Field(default_factory=list)
-
-    @model_validator(mode="after")
-    def validate_users(self) -> "TeamConfig":
-        """Validate configured team users."""
-        if not self.users:
-            raise ValueError(f"Team has no users: {self.name}")
-        return self
 
 
 class CLIConfig(BaseModel):
@@ -33,21 +21,18 @@ class CLIConfig(BaseModel):
 class AppConfig(BaseModel):
     """Configure the Jira stats exporter."""
 
+    api: JiraAPIConfig = Field(default_factory=JiraAPIConfig)
     cli: CLIConfig = Field(default_factory=CLIConfig)
-    teams: list[TeamConfig] = Field(default_factory=list)
+    teams: dict[str, Team] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_teams(self) -> "AppConfig":
         """Validate configured teams."""
-        default_teams = [team for team in self.teams if team.default]
+        default_teams = [team for team in self.teams.values() if team.default]
         if len(default_teams) > 1:
             raise ValueError("Only one default team can be configured")
 
-        shortcuts = [team.shortcut for team in self.teams]
-        if len(shortcuts) != len(set(shortcuts)):
-            raise ValueError("Team shortcuts must be unique")
-
-        names = [team.name for team in self.teams]
+        names = [team.name for team in self.teams.values()]
         if len(names) != len(set(names)):
             raise ValueError("Team names must be unique")
 
@@ -73,4 +58,6 @@ def resolve_config_path(path: Path | None = None) -> Path:
     if env_path:
         return Path(env_path).expanduser()
 
-    return Path(__file__).resolve().parents[2] / DEFAULT_CONFIG_FILE_NAME
+    raise ValueError(
+        "Specify config path via --config or set JIRA_STATS_EXPORTER_CONFIG environment variable"
+    )

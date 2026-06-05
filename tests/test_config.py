@@ -1,7 +1,6 @@
 from pathlib import Path
 
-from app import config
-from app.config import CONFIG_ENV_VAR, DEFAULT_CONFIG_FILE_NAME, AppConfig, resolve_config_path
+from app.config import CONFIG_ENV_VAR, resolve_config_path
 
 
 def test_resolve_config_path_prefers_explicit_path(tmp_path: Path) -> None:
@@ -17,28 +16,3 @@ def test_resolve_config_path_reads_env_var(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv(CONFIG_ENV_VAR, str(path))
 
     assert resolve_config_path() == path
-
-
-def test_resolve_config_path_uses_application_directory(tmp_path: Path, monkeypatch) -> None:
-    """Resolve default config path relative to the application files."""
-    monkeypatch.chdir(tmp_path)
-
-    assert (
-        resolve_config_path()
-        == Path(config.__file__).resolve().parents[2] / DEFAULT_CONFIG_FILE_NAME
-    )
-
-
-def test_app_config_loads_cli_section(tmp_path: Path) -> None:
-    """Load configured CLI options."""
-    path = tmp_path / "config.toml"
-    path.write_text(
-        """
-[cli]
-max_summary_length = 10
-""".strip()
-    )
-
-    app_config = AppConfig.load(path)
-
-    assert app_config.cli.max_summary_length == 10

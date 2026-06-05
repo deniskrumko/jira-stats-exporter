@@ -15,8 +15,6 @@
 - `make lint`: verify formatting
 - `make check`: run all checks
 
-The CLI requires `JIRA_BASE_URL` and `JIRA_API_TOKEN`. If they are not exported in the shell, `src/app/cli.py` loads `~/.secrets/jira-stats-exporter/.env`.
-
 ## Coding Style
 
 - Add docstrings to created classes, methods and functions. Docstrings only in English. Always single-line docstrings, without args/return. Only one-line summary. For `__init__` methods write """Initialize class instance.""".

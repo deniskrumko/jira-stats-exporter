@@ -1,3 +1,5 @@
+PHONY: fmt lint tests check
+
 fmt:
 	@echo "🔧  Formatting..."
 	@uv run --dev ruff format .
@@ -9,8 +11,8 @@ lint:
 	@uv run --dev ruff check .
 	@uv run --dev ty check .
 
-test:
+tests:
 	@echo "🔧  Testing..."
 	@uv run --dev pytest
 
-check: fmt lint test
+check: fmt lint tests
