@@ -46,7 +46,10 @@ class AppConfig(BaseModel):
             raise FileNotFoundError(f"Config file does not exist: {config_path}")
 
         payload = tomllib.loads(config_path.read_text())
-        return cls.model_validate(payload)
+        try:
+            return cls.model_validate(payload)
+        except Exception as e:
+            raise ValueError(f"Invalid config {config_path}: {e}") from e
 
 
 def resolve_config_path(path: Path | None = None) -> Path:

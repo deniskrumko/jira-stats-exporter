@@ -53,7 +53,10 @@ class DateRange(BaseModel):
             from_date is not None or to_date is not None,
         ]
         if sum(selected) != 1:
-            raise ValueError("Specify exactly one date range option")
+            raise ValueError(
+                "Specify exactly one date range option: "
+                "week, quarter, month, day, or from_date/to_date",
+            )
 
         today = date.today()
         target_year = year or today.year

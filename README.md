@@ -1,5 +1,6 @@
 # jira-stats-exporter
-Export statistics from Atlassian Jira
+
+Export statistics from Atlassian Jira.
 
 # Config
 
@@ -8,14 +9,13 @@ Application config is loaded from `--config` cli arg or `JIRA_STATS_EXPORTER_CON
 ```toml
 [api]
 base_url = "https://jira.best-team.org"
-api_token = ""
+api_token = "<your_api_token>"
 
 [cli]
-max_summary_length = 60
+max_summary_length = 120
 
-[[teams]]
-name = "My best team"
-shortcut = "ml"
+[teams.backend]
+name = "Backend team"
 default = true
 users = [
     "krumko",
@@ -28,6 +28,7 @@ users = [
 
 ## Commands
 
-- `me` - show response from https://jira.kolesa-team.org/rest/api/2/myself to check if auth works
-- `closed --team -m 5` - show stats for the default configured team
-- `closed --team backend -w 0` - show stats for a configured team by shortcut
+- `me` - show response from `<jira_base_url>/rest/api/2/myself` to check if auth works
+- `issue <issue_id>` - show details for a specific issue
+- `closed --week 0` - show closed issues for the current week
+- `closed --team backend --quarter -1` - show closed issues for past quarter for team backend
