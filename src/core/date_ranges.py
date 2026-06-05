@@ -4,6 +4,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from .cli_utils import RESET, dimmed
+
 
 class DateRange(BaseModel):
     """Represent an inclusive date range."""
@@ -16,9 +18,16 @@ class DateRange(BaseModel):
 
     def __str__(self) -> str:
         """Return the formatted date range."""
+        return self.as_string()
+
+    def as_string(self, color: bool = False) -> str:
         result = f"{self.start.isoformat()} – {self.end.isoformat()}"
         if self.info:
-            result += f" ({self.info})"
+            info = f" ({self.info})"
+            if color:
+                result += f"{RESET}{dimmed(info)}"
+            else:
+                result += info
         return result
 
     @property
@@ -69,18 +78,31 @@ class DateRange(BaseModel):
         """Resolve a week option into an inclusive date range."""
         if value == 0:
             current_week_start = today - timedelta(days=today.weekday())
-            return DateRange(start=current_week_start, end=today)
+            return DateRange(
+                start=current_week_start,
+                end=today,
+                info="Current week",
+            )
 
         if value <= 0:
             current_week_start = today - timedelta(days=today.weekday())
             start = current_week_start + timedelta(weeks=value)
-            return DateRange(start=start, end=start + timedelta(days=6))
+            return DateRange(
+                start=start,
+                end=start + timedelta(days=6),
+                info=f"Week {value}",
+            )
 
         try:
             start = date.fromisocalendar(year, value, 1)
         except ValueError as error:
             raise ValueError(f"Invalid ISO week for year {year}: {value}") from error
-        return DateRange(start=start, end=start + timedelta(days=6), info=f"Week {value}")
+
+        return DateRange(
+            start=start,
+            end=start + timedelta(days=6),
+            info=f"Week {value}",
+        )
 
     @staticmethod
     def _resolve_quarter(value: int, year: int, today: date) -> "DateRange":

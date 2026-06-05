@@ -1,5 +1,7 @@
+from pathlib import Path
 from typing import Any
 
+from app.config import AppConfig, TeamConfig
 from app.resources import ClosedIssue, ClosedIssuesStats
 from core.date_ranges import DateRange
 from core.utils import avg
@@ -36,6 +38,10 @@ class JiraStatsExporter:
         """Return Jira issue data with custom field IDs replaced by field names."""
         payload = self._client.issue(key)
         return self._custom_fields_client.replace(payload)
+
+    def get_team(self, name: str | None = None, config_path: Path | None = None) -> TeamConfig:
+        """Return configured team by name, shortcut, or default marker."""
+        return AppConfig.load(config_path).resolve_team(name)
 
     def closed(
         self, responsible: str, date_range: DateRange, with_summary: bool = True

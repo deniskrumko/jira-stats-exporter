@@ -1,32 +1,28 @@
 from pathlib import Path
 
-import pytest
-
-from app.cli import CLIApp
+from app.cli import DEFAULT_TEAM_MARKER, build_parser
 from app.resources import ClosedIssue, ClosedIssuesStats
 from core.date_ranges import DateRange
 
 
-def test_get_users_returns_user_without_team() -> None:
-    """Return the selected user when team file is not provided."""
-    assert CLIApp._get_users("krumko", None) == ["krumko"]
+def test_parser_keeps_config_before_command() -> None:
+    """Keep config path when it is specified before a command."""
+    args = build_parser().parse_args(
+        ["--config", "config.test.toml", "closed", "--team", "ml", "-m", "5"]
+    )
+
+    assert args.config == Path("config.test.toml")
+    assert args.team == "ml"
 
 
-def test_get_users_reads_team_file(tmp_path: Path) -> None:
-    """Read responsible users from a team file."""
-    team = tmp_path / "team.txt"
-    team.write_text("krumko\n\nturdubaev\n")
+def test_parser_reads_config_after_command() -> None:
+    """Read config path when it is specified after a command."""
+    args = build_parser().parse_args(
+        ["closed", "--config", "config.test.toml", "--team", "-m", "5"]
+    )
 
-    assert CLIApp._get_users("me", team) == ["krumko", "turdubaev"]
-
-
-def test_get_users_fails_for_empty_team_file(tmp_path: Path) -> None:
-    """Fail when team file has no responsible users."""
-    team = tmp_path / "team.txt"
-    team.write_text("\n")
-
-    with pytest.raises(SystemExit, match="Team file is empty"):
-        CLIApp._get_users("me", team)
+    assert args.config == Path("config.test.toml")
+    assert args.team == DEFAULT_TEAM_MARKER
 
 
 def _closed_issues_stats(issue_count: int, date_range: DateRange) -> ClosedIssuesStats:

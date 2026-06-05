@@ -11,6 +11,17 @@ from core.date_ranges import DateRange
 from core.utils import format_seconds
 
 DEFAULT_ENV_PATH = Path.home() / ".secrets" / "jira-stats-exporter" / ".env"
+DEFAULT_TEAM_MARKER = "__default__"
+
+
+def add_config_argument(parser: argparse.ArgumentParser, default: Path | str | None = None) -> None:
+    """Add the shared config path option to an argument parser."""
+    parser.add_argument(
+        "--config",
+        default=default,
+        type=Path,
+        help="Path to the Jira stats exporter TOML config",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -19,13 +30,18 @@ def build_parser() -> argparse.ArgumentParser:
         prog="cli",
         description="Export statistics from Atlassian Jira",
     )
+    add_config_argument(parser)
     subparsers = parser.add_subparsers(dest="command", required=True)
-    subparsers.add_parser("me", help="Show current Jira user")
+    add_config_argument(
+        subparsers.add_parser("me", help="Show current Jira user"),
+        argparse.SUPPRESS,
+    )
 
     issue_parser = subparsers.add_parser(
         "issue",
         help="Show Jira issue data",
     )
+    add_config_argument(issue_parser, argparse.SUPPRESS)
     issue_parser.add_argument(
         "key",
         help="Jira issue key, for example ML-1234",
@@ -35,6 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
         "closed",
         help="Show closed Jira issue links",
     )
+    add_config_argument(closed_parser, argparse.SUPPRESS)
     closed_parser.add_argument(
         "-u",
         "--user",
@@ -44,8 +61,9 @@ def build_parser() -> argparse.ArgumentParser:
     closed_parser.add_argument(
         "-t",
         "--team",
-        type=Path,
-        help="File with Jira responsible usernames",
+        nargs="?",
+        const=DEFAULT_TEAM_MARKER,
+        help="Use configured team users, optionally by shortcut or name",
     )
     closed_parser.add_argument(
         "-w",
@@ -141,7 +159,14 @@ class CLIApp:
         except ValueError as error:
             raise SystemExit(str(error)) from error
 
-        users = self._get_users(args.user, args.team)
+        users = [args.user]
+        if args.team is not None:
+            team_name = None if args.team == DEFAULT_TEAM_MARKER else args.team
+            try:
+                users = self._exporter.get_team(team_name, args.config).users
+            except (FileNotFoundError, ValueError) as error:
+                raise SystemExit(str(error)) from error
+
         for index, user in enumerate(users):
             if index > 0:
                 print()
@@ -149,21 +174,9 @@ class CLIApp:
             self._print_closed_stats(stats, show_issues=args.issues)
 
     @staticmethod
-    def _get_users(user: str, team: Path | None) -> list[str]:
-        """Return Jira responsible usernames for the closed command."""
-        if team is None:
-            return [user]
-
-        users = [line.strip() for line in team.read_text().splitlines() if line.strip()]
-        if not users:
-            raise SystemExit(f"Team file is empty: {team}")
-
-        return users
-
-    @staticmethod
     def _print_closed_stats(stats: ClosedIssuesStats, show_issues: bool) -> None:
         """Print closed issue statistics."""
-        print(stat_line("Date Range", str(stats.date_range)))
+        print(stat_line("Date Range", stats.date_range.as_string(color=True)))
         print(stat_line("Responsible", stats.responsible))
         print(CLIApp._closed_issues_line(stats))
         for metric_name in TIME_METRICS:
