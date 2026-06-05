@@ -2,15 +2,11 @@ from calendar import month_name, monthrange
 from datetime import date, timedelta
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
-
-from .cli_utils import RESET, dimmed
+from pydantic import BaseModel
 
 
 class DateRange(BaseModel):
-    """Represent an inclusive date range."""
-
-    model_config = ConfigDict(frozen=True)
+    """Inclusive date range."""
 
     start: date
     end: date
@@ -18,16 +14,16 @@ class DateRange(BaseModel):
 
     def __str__(self) -> str:
         """Return the formatted date range."""
-        return self.as_string()
-
-    def as_string(self, color: bool = False) -> str:
         result = f"{self.start.isoformat()} – {self.end.isoformat()}"
         if self.info:
-            info = f" ({self.info})"
-            if color:
-                result += f"{RESET}{dimmed(info)}"
-            else:
-                result += info
+            result += f" ({self.info})"
+        return result
+
+    @property
+    def colored_string(self) -> str:
+        result = f"[yellow not b]{self.start.isoformat()} – {self.end.isoformat()}[/]"
+        if self.info:
+            result += f" [dim]({self.info})[/dim]"
         return result
 
     @property

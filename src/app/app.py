@@ -1,53 +1,73 @@
+from functools import cached_property
 from pathlib import Path
 from typing import Any
 
-from app.config import AppConfig, TeamConfig
-from app.resources import ClosedIssue, ClosedIssuesStats
+from app.config import AppConfig
+from app.resources import Issue, Issues, IssueStatus, Team
 from core.date_ranges import DateRange
 from core.utils import avg
 from jira import JiraAPIClient, JiraCustomFieldsClient, JQLClient
 
-TIME_METRICS = (
-    "TTM",
-    "Time in Progress",
-    "Time in Review",
-    "Time in Resolved",
-)
-ISSUE_SUMMARY_MAX_LENGTH = 60
+from .resources import TIME_METRICS
 
 
-class JiraStatsExporter:
-    """Coordinate Jira API access and response post-processing."""
+class App:
+    """Run application business logic."""
 
     def __init__(
         self,
         client: JiraAPIClient | None = None,
         custom_fields_client: JiraCustomFieldsClient | None = None,
         jql_client: JQLClient | None = None,
+        config: Path | AppConfig | None = None,
     ) -> None:
         """Initialize class instance."""
-        self._client = client or JiraAPIClient()
+        self._api = client or JiraAPIClient()
         self._custom_fields_client = custom_fields_client or JiraCustomFieldsClient()
         self._jql_client = jql_client or JQLClient()
 
+        self._config = self._load_config(config)
+        self.teams = self._build_teams()
+
+    # Public methods
+
     def me(self) -> dict[str, Any]:
-        """Return information about the authenticated Jira user."""
-        return self._client.me()
+        """Get information about the authenticated Jira user."""
+        return self._api.me()
 
     def issue(self, key: str) -> dict[str, Any]:
-        """Return Jira issue data with custom field IDs replaced by field names."""
-        payload = self._client.issue(key)
+        """Get Jira issue data with custom field IDs replaced by field names."""
+        payload = self._api.issue(key)
         return self._custom_fields_client.replace(payload)
 
-    def get_team(self, name: str | None = None, config_path: Path | None = None) -> TeamConfig:
-        """Return configured team by name, shortcut, or default marker."""
-        return AppConfig.load(config_path).resolve_team(name)
+    def get_team(self, shortcut: str | None = None) -> Team:
+        """Get team by shortcut name."""
+        if shortcut is None:
+            return self.default_team
 
-    def closed(
-        self, responsible: str, date_range: DateRange, with_summary: bool = True
-    ) -> ClosedIssuesStats:
-        """Return closed issue stats for a responsible user during a date range."""
-        username = self._resolve_responsible(responsible)
+        team = self.teams.get(shortcut)
+        if team is None:
+            raise ValueError(f"Team was not found by shortcut: {shortcut}")
+
+        return team
+
+    @cached_property
+    def default_team(self) -> Team:
+        """Return configured default team."""
+        for team in self.teams.values():
+            if team.default:
+                return team
+
+        raise ValueError("Default team is not configured")
+
+    def get_closed_issues(
+        self,
+        responsible: str,
+        date_range: DateRange,
+        with_summary: bool = True,
+    ) -> Issues:
+        """Return closed issues for a responsible user during a date range."""
+        username = self._resolve_user(responsible)
         jql = self._jql_client.closed_issues(username, date_range)
 
         fields = ["key"]
@@ -61,9 +81,9 @@ class JiraStatsExporter:
         fields.extend(metric_fields.values())
 
         metric_values: dict[str, list[int]] = {metric_name: [] for metric_name in TIME_METRICS}
-        issues_stats: list[ClosedIssue] = []
+        issue_results: list[Issue] = []
 
-        for payload in self._client.search_all(jql, fields=fields):
+        for payload in self._api.search_all(jql, fields=fields):
             issues = payload.get("issues")
             if not isinstance(issues, list):
                 raise RuntimeError("Unexpected Jira search response")
@@ -76,10 +96,12 @@ class JiraStatsExporter:
                 if not isinstance(fields, dict):
                     raise RuntimeError("Unexpected Jira search response")
                 if isinstance(key, str):
-                    issues_stats.append(
-                        ClosedIssue(
-                            url=self._client.issue_url(key),
-                            summary=_trim_summary(fields.get("summary")),
+                    summary = fields.get("summary")
+                    issue_results.append(
+                        Issue(
+                            url=self._api.issue_url(key),
+                            summary=summary if isinstance(summary, str) else None,
+                            status=IssueStatus.CLOSED,
                         )
                     )
 
@@ -92,19 +114,33 @@ class JiraStatsExporter:
                         raise ValueError(f"Unexpected Jira field {field_name}: {value}")
                     metric_values[metric_name].append(value)
 
-        return ClosedIssuesStats(
+        return Issues(
             responsible=username,
             date_range=date_range,
-            issues=issues_stats,
-            avg_time_seconds={
+            issues=issue_results,
+            avg_time_in_status={
                 metric_name: avg(values) for metric_name, values in metric_values.items()
             },
         )
 
-    def _resolve_responsible(self, responsible: str) -> str:
-        """Resolve the special responsible alias into a Jira username."""
-        if responsible != "me":
-            return responsible
+    # Private methods
+
+    def _build_teams(self) -> dict[str, Team]:
+        """Build teams from config."""
+        return {
+            team.shortcut: Team(
+                name=team.name,
+                shortcut=team.shortcut,
+                users=team.users,
+                default=team.default,
+            )
+            for team in self._config.teams
+        }
+
+    def _resolve_user(self, username: str) -> str:
+        """Resolve the special user alias into a Jira username."""
+        if username != "me":
+            return username
 
         name = self.me().get("name")
         if not name or not isinstance(name, str):
@@ -112,11 +148,9 @@ class JiraStatsExporter:
 
         return name
 
+    def _load_config(self, config: Path | AppConfig | None) -> AppConfig:
+        """Load application config from a path or return a provided config."""
+        if isinstance(config, AppConfig):
+            return config
 
-def _trim_summary(value: str | None) -> str | None:
-    """Return a trimmed issue summary."""
-    if not isinstance(value, str):
-        return None
-    if len(value) <= ISSUE_SUMMARY_MAX_LENGTH:
-        return value
-    return f"{value[:ISSUE_SUMMARY_MAX_LENGTH]}..."
+        return AppConfig.load(config)

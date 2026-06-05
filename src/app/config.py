@@ -2,7 +2,7 @@ import os
 import tomllib
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 CONFIG_ENV_VAR = "JIRA_STATS_EXPORTER_CONFIG"
 DEFAULT_CONFIG_FILE_NAME = "config.toml"
@@ -10,8 +10,6 @@ DEFAULT_CONFIG_FILE_NAME = "config.toml"
 
 class TeamConfig(BaseModel):
     """Configure a Jira team."""
-
-    model_config = ConfigDict(frozen=True)
 
     name: str
     shortcut: str
@@ -26,25 +24,30 @@ class TeamConfig(BaseModel):
         return self
 
 
+class CLIConfig(BaseModel):
+    """Configure console application behavior."""
+
+    max_summary_length: int = 100
+
+
 class AppConfig(BaseModel):
     """Configure the Jira stats exporter."""
 
-    model_config = ConfigDict(frozen=True)
-
-    team: list[TeamConfig] = Field(default_factory=list)
+    cli: CLIConfig = Field(default_factory=CLIConfig)
+    teams: list[TeamConfig] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_teams(self) -> "AppConfig":
         """Validate configured teams."""
-        default_teams = [team for team in self.team if team.default]
+        default_teams = [team for team in self.teams if team.default]
         if len(default_teams) > 1:
             raise ValueError("Only one default team can be configured")
 
-        shortcuts = [team.shortcut for team in self.team]
+        shortcuts = [team.shortcut for team in self.teams]
         if len(shortcuts) != len(set(shortcuts)):
             raise ValueError("Team shortcuts must be unique")
 
-        names = [team.name for team in self.team]
+        names = [team.name for team in self.teams]
         if len(names) != len(set(names)):
             raise ValueError("Team names must be unique")
 
@@ -59,20 +62,6 @@ class AppConfig(BaseModel):
 
         payload = tomllib.loads(config_path.read_text())
         return cls.model_validate(payload)
-
-    def resolve_team(self, value: str | None = None) -> TeamConfig:
-        """Resolve a configured team by name, shortcut, or default marker."""
-        if value is None:
-            default_teams = [team for team in self.team if team.default]
-            if not default_teams:
-                raise ValueError("Default team is not configured")
-            return default_teams[0]
-
-        for team in self.team:
-            if value in (team.shortcut, team.name):
-                return team
-
-        raise ValueError(f"Team is not configured: {value}")
 
 
 def resolve_config_path(path: Path | None = None) -> Path:

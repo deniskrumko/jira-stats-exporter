@@ -1,18 +1,16 @@
 import os
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 
-class JiraConfig(BaseModel):
+class JiraAPIConfig(BaseModel):
     """Configuration required to connect to Jira."""
-
-    model_config = ConfigDict(frozen=True)
 
     base_url: str
     api_token: str
 
     @classmethod
-    def from_env(cls) -> "JiraConfig":
+    def from_env(cls) -> "JiraAPIConfig":
         """Create Jira configuration from required environment variables."""
         missing = [name for name in ("JIRA_BASE_URL", "JIRA_API_TOKEN") if not os.getenv(name)]
         if missing:

@@ -1,26 +1,17 @@
-BOLD = "\033[1m"
-YELLOW = "\033[33m"
-ATTENTION = "\033[30;41m"
-GOOD = "\033[30;42m"
-DIMMED = "\033[2m"
-RESET = "\033[0m"
+from rich import print
 
 
-def stat_line(
+def print_stat(
     label: str,
     value: str,
-    label_color: str = BOLD,
-    value_color: str = YELLOW,
-) -> str:
-    """Format a CLI statistic line with ANSI colors."""
-    return f"{label_color}{label}:{RESET} {value_color}{value}{RESET}"
+    label_color: str | None = "bold",
+    value_color: str | None = "yellow",
+) -> None:
+    """Print a CLI statistic line with ANSI colors using rich."""
+    if label_color:
+        label = f"[{label_color}]{label}[/{label_color}]"
 
+    if value_color:
+        value = f"[{value_color}]{value}[/{value_color}]"
 
-def bold(value: str) -> str:
-    """Format CLI text as bold."""
-    return f"{BOLD}{value}{RESET}"
-
-
-def dimmed(value: str) -> str:
-    """Format CLI text as light gray."""
-    return f"{DIMMED}{value}{RESET}"
+    print(f"{label}: {value}")

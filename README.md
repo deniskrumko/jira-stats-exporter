@@ -16,7 +16,10 @@ Application config is loaded from `--config`, `JIRA_STATS_EXPORTER_CONFIG`, or `
 near the application files.
 
 ```toml
-[[team]]
+[cli]
+max_summary_length = 60
+
+[[teams]]
 name = "My best team"
 shortcut = "ml"
 default = true
@@ -33,4 +36,4 @@ users = [
 
 - `me` - show response from https://jira.kolesa-team.org/rest/api/2/myself to check if auth works
 - `closed --team -m 5` - show stats for the default configured team
-- `closed --team ml -m 5` - show stats for a configured team by shortcut or name
+- `closed --team ml -m 5` - show stats for a configured team by shortcut

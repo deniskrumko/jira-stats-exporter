@@ -69,9 +69,13 @@ def test_positive_week_uses_iso_week() -> None:
 
 def test_negative_week_uses_previous_full_week_and_ignores_year() -> None:
     """Resolve a negative week as the previous full Monday to Sunday week."""
-    assert DateRange.resolve(week=-1, year=1999) == DateRange(
+    assert DateRange.resolve(
+        week=-1,
+        year=1999,
+    ) == DateRange(
         start=date(2026, 5, 25),
         end=date(2026, 5, 31),
+        info="Week -1",
     )
 
 
@@ -80,6 +84,7 @@ def test_zero_week_uses_current_full_week_and_ignores_year() -> None:
     assert DateRange.resolve(week=0, year=1999) == DateRange(
         start=date(2026, 6, 1),
         end=date(2026, 6, 3),
+        info="Current week",
     )
 
 

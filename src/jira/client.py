@@ -3,15 +3,15 @@ from typing import Any
 
 import httpx
 
-from jira.config import JiraConfig
+from jira.config import JiraAPIConfig
 
 
 class JiraAPIClient:
     """HTTP client for Jira REST API endpoints used by the exporter."""
 
-    def __init__(self, config: JiraConfig | None = None) -> None:
+    def __init__(self, config: JiraAPIConfig | None = None) -> None:
         """Initialize class instance."""
-        self._config = config or JiraConfig.from_env()
+        self._config = config or JiraAPIConfig.from_env()
 
     def me(self) -> dict[str, Any]:
         """Fetch information about the authenticated Jira user."""

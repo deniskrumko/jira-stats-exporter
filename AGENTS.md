@@ -20,7 +20,10 @@ The CLI requires `JIRA_BASE_URL` and `JIRA_API_TOKEN`. If they are not exported 
 ## Coding Style
 
 - Add docstrings to created classes, methods and functions. Docstrings only in English. Always single-line docstrings, without args/return. Only one-line summary. For `__init__` methods write """Initialize class instance.""".
+- Avoid generic docstrings that start with words like "Represent"; describe the model directly.
 - Use Pydantic `BaseModel` for structured data models instead of dataclasses.
+- Store Pydantic models in `resources.py` files within their modules.
+- Do not use `model_config = ConfigDict(frozen=True)` in Pydantic models.
 - Use python 3.13 syntax
 - Run `make fmt` to format code
 
