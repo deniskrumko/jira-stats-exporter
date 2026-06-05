@@ -242,6 +242,6 @@ class CLIApp:
 
         line = str(issues.count)
         if issues.issues_per_week:
-            line += "[dim]({issues.issues_per_week:.1f} per week)[/dim]"
+            line += f" [dim]({issues.issues_per_week:.1f}/week)[/dim]"
 
         print_stat(display_name, line, value_color=value_color)
