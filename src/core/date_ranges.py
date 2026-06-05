@@ -1,4 +1,4 @@
-from calendar import monthrange
+from calendar import month_name, monthrange
 from datetime import date, timedelta
 from typing import Any
 
@@ -12,10 +12,14 @@ class DateRange(BaseModel):
 
     start: date
     end: date
+    info: str | None = None
 
     def __str__(self) -> str:
         """Return the formatted date range."""
-        return f"{self.start.isoformat()} – {self.end.isoformat()}"
+        result = f"{self.start.isoformat()} – {self.end.isoformat()}"
+        if self.info:
+            result += f" ({self.info})"
+        return result
 
     @property
     def days(self) -> int:
@@ -76,7 +80,7 @@ class DateRange(BaseModel):
             start = date.fromisocalendar(year, value, 1)
         except ValueError as error:
             raise ValueError(f"Invalid ISO week for year {year}: {value}") from error
-        return DateRange(start=start, end=start + timedelta(days=6))
+        return DateRange(start=start, end=start + timedelta(days=6), info=f"Week {value}")
 
     @staticmethod
     def _resolve_quarter(value: int, year: int, today: date) -> "DateRange":
@@ -86,6 +90,7 @@ class DateRange(BaseModel):
             return DateRange(
                 start=DateRange._quarter_range(today.year, current_quarter).start,
                 end=today,
+                info="Current quarter",
             )
 
         if value <= 0:
@@ -103,7 +108,11 @@ class DateRange(BaseModel):
     def _resolve_month(value: int, year: int, today: date) -> "DateRange":
         """Resolve a month option into an inclusive date range."""
         if value == 0:
-            return DateRange(start=date(today.year, today.month, 1), end=today)
+            return DateRange(
+                start=date(today.year, today.month, 1),
+                end=today,
+                info=f"{month_name[today.month]}, {today.year}",
+            )
 
         if value <= 0:
             month_index = today.year * 12 + today.month - 1 + value
@@ -148,6 +157,7 @@ class DateRange(BaseModel):
         return DateRange(
             start=date(year, month, 1),
             end=date(year, month, monthrange(year, month)[1]),
+            info=f"{month_name[month]}, {year}",
         )
 
     @staticmethod
@@ -158,6 +168,7 @@ class DateRange(BaseModel):
         return DateRange(
             start=date(year, start_month, 1),
             end=date(year, end_month, monthrange(year, end_month)[1]),
+            info=f"{year} Q{quarter}",
         )
 
     @staticmethod

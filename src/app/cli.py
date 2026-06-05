@@ -22,28 +22,77 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("me", help="Show current Jira user")
 
-    issue_parser = subparsers.add_parser("issue", help="Show Jira issue data")
-    issue_parser.add_argument("key", help="Jira issue key, for example ML-1234")
+    issue_parser = subparsers.add_parser(
+        "issue",
+        help="Show Jira issue data",
+    )
+    issue_parser.add_argument(
+        "key",
+        help="Jira issue key, for example ML-1234",
+    )
 
-    closed_parser = subparsers.add_parser("closed", help="Show closed Jira issue links")
+    closed_parser = subparsers.add_parser(
+        "closed",
+        help="Show closed Jira issue links",
+    )
     closed_parser.add_argument(
+        "-u",
         "--user",
         default="me",
         help="Jira responsible username or 'me'",
     )
-    closed_parser.add_argument("--team", type=Path, help="File with Jira responsible usernames")
-    closed_parser.add_argument("--week", type=int, help="ISO week number or negative relative week")
     closed_parser.add_argument(
+        "-t",
+        "--team",
+        type=Path,
+        help="File with Jira responsible usernames",
+    )
+    closed_parser.add_argument(
+        "-w",
+        "--week",
+        type=int,
+        help="ISO week number or negative relative week",
+    )
+    closed_parser.add_argument(
+        "-q",
         "--quarter",
         type=int,
         help="Quarter number or negative relative quarter",
     )
-    closed_parser.add_argument("--month", type=int, help="Month number or negative relative month")
-    closed_parser.add_argument("--day", type=int, help="Day of year or negative relative day")
-    closed_parser.add_argument("--from", dest="from_date", help="Range start date in YYYY-MM-DD")
-    closed_parser.add_argument("--to", dest="to_date", help="Range end date in YYYY-MM-DD")
-    closed_parser.add_argument("--year", type=int, help="Year for positive week, month, or day")
-    closed_parser.add_argument("--issues", action="store_true", help="Show closed issue links")
+    closed_parser.add_argument(
+        "-m",
+        "--month",
+        type=int,
+        help="Month number or negative relative month",
+    )
+    closed_parser.add_argument(
+        "-d",
+        "--day",
+        type=int,
+        help="Day of year or negative relative day",
+    )
+    closed_parser.add_argument(
+        "--from",
+        dest="from_date",
+        help="Range start date in YYYY-MM-DD",
+    )
+    closed_parser.add_argument(
+        "--to",
+        dest="to_date",
+        help="Range end date in YYYY-MM-DD",
+    )
+    closed_parser.add_argument(
+        "-y",
+        "--year",
+        type=int,
+        help="Year for positive week, month, or day",
+    )
+    closed_parser.add_argument(
+        "-i",
+        "--issues",
+        action="store_true",
+        help="Show closed issue links",
+    )
 
     return parser
 

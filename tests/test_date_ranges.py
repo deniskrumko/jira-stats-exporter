@@ -27,6 +27,7 @@ def test_positive_month_uses_current_year_by_default() -> None:
     assert DateRange.resolve(month=5) == DateRange(
         start=date(2026, 5, 1),
         end=date(2026, 5, 31),
+        info="May, 2026",
     )
 
 
@@ -35,6 +36,7 @@ def test_positive_month_uses_explicit_year() -> None:
     assert DateRange.resolve(month=2, year=2024) == DateRange(
         start=date(2024, 2, 1),
         end=date(2024, 2, 29),
+        info="February, 2024",
     )
 
 
@@ -43,6 +45,7 @@ def test_positive_quarter_uses_current_year_by_default() -> None:
     assert DateRange.resolve(quarter=2) == DateRange(
         start=date(2026, 4, 1),
         end=date(2026, 6, 30),
+        info="2026 Q2",
     )
 
 
@@ -51,6 +54,7 @@ def test_positive_quarter_uses_explicit_year() -> None:
     assert DateRange.resolve(quarter=1, year=2025) == DateRange(
         start=date(2025, 1, 1),
         end=date(2025, 3, 31),
+        info="2025 Q1",
     )
 
 
@@ -59,6 +63,7 @@ def test_positive_week_uses_iso_week() -> None:
     assert DateRange.resolve(week=1, year=2026) == DateRange(
         start=date(2025, 12, 29),
         end=date(2026, 1, 4),
+        info="Week 1",
     )
 
 
@@ -83,6 +88,7 @@ def test_negative_month_uses_relative_month_and_ignores_year() -> None:
     assert DateRange.resolve(month=-1, year=1999) == DateRange(
         start=date(2026, 5, 1),
         end=date(2026, 5, 31),
+        info="May, 2026",
     )
 
 
@@ -91,6 +97,7 @@ def test_zero_month_uses_current_month_and_ignores_year() -> None:
     assert DateRange.resolve(month=0, year=1999) == DateRange(
         start=date(2026, 6, 1),
         end=date(2026, 6, 3),
+        info="June, 2026",
     )
 
 
@@ -99,6 +106,7 @@ def test_negative_quarter_uses_relative_quarter_and_ignores_year() -> None:
     assert DateRange.resolve(quarter=-1, year=1999) == DateRange(
         start=date(2026, 1, 1),
         end=date(2026, 3, 31),
+        info="2026 Q1",
     )
 
 
@@ -107,6 +115,7 @@ def test_zero_quarter_uses_current_quarter_and_ignores_year() -> None:
     assert DateRange.resolve(quarter=0, year=1999) == DateRange(
         start=date(2026, 4, 1),
         end=date(2026, 6, 3),
+        info="Current quarter",
     )
 
 
