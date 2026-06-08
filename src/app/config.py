@@ -5,8 +5,8 @@ from pathlib import Path
 from pydantic import BaseModel, Field, model_validator
 
 from jira.config import JiraAPIConfig
-
-from .resources import Team
+from teams import Team
+from users import UsersConfig
 
 CONFIG_ENV_VAR = "JIRA_STATS_EXPORTER_CONFIG"
 DEFAULT_CONFIG_FILE_NAME = "config.toml"
@@ -23,6 +23,7 @@ class AppConfig(BaseModel):
 
     api: JiraAPIConfig = Field(default_factory=JiraAPIConfig)
     cli: CLIConfig = Field(default_factory=CLIConfig)
+    users: UsersConfig = Field(default_factory=UsersConfig)
     teams: dict[str, Team] = Field(default_factory=dict)
 
     @model_validator(mode="after")

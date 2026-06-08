@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel
 
 from core.date_ranges import DateRange
 
@@ -16,25 +16,6 @@ class IssueStatus(StrEnum):
     """Jira issue status."""
 
     CLOSED = "closed"
-
-
-class Team(BaseModel):
-    """Jira team."""
-
-    name: str
-    users: list[str]
-    default: bool = False
-
-    def __str__(self) -> str:
-        return self.name
-
-    @model_validator(mode="after")
-    def validate_users(self) -> "Team":
-        """Validate configured team users."""
-        if not self.users:
-            raise ValueError(f"Team has no users: {self.name}")
-
-        return self
 
 
 class Issue(BaseModel):

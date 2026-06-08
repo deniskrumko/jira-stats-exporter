@@ -1,4 +1,4 @@
-PHONY: fmt lint tests check
+.PHONY: fmt lint tests check
 
 fmt:
 	@echo "🔧  Formatting..."

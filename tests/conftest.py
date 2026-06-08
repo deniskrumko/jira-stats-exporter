@@ -1,50 +1,26 @@
-from pathlib import Path
-
 import pytest
 
 from app.app import App
 from jira import JiraAPIClient, JiraCustomFieldsClient, JQLClient
+from teams import MockTeamsClient, Team
+from users import MockUsersClient, User
 
 
 @pytest.fixture
-def config(tmp_path: Path) -> Path:
-    return _write_config(tmp_path)
-
-
-@pytest.fixture
-def app(config, jira_cf_client, jira_api_client) -> App:
+def app(jira_cf_client, jira_api_client) -> App:
     """Build an application without real Jira clients."""
     return App(
         api_client=jira_api_client,
         cf_client=jira_cf_client,
         jql_client=JQLClient(),
-        config=config,
+        users_client=MockUsersClient({"me": User(username="krumko")}),
+        teams_client=MockTeamsClient(
+            {
+                "pl": Team(name="Pupa And Lupa Group", users=["pupa", "lupa"], default=True),
+                "kr": Team(name="Krumko Productions", users=["krumko"]),
+            }
+        ),
     )
-
-
-def _write_config(tmp_path: Path) -> Path:
-    """Write a test application config."""
-    config = tmp_path / "config.toml"
-    config.write_text(
-        """
-[api]
-base_url = "https://jira.example.com"
-api_token = "123"
-
-[cli]
-max_summary_length = 60
-
-[teams.pl]
-name = "Pupa And Lupa Group"
-default = true
-users = ["pupa", "lupa"]
-
-[teams.kr]
-name = "Krumko Productions"
-users = ["krumko"]
-""".strip()
-    )
-    return config
 
 
 @pytest.fixture

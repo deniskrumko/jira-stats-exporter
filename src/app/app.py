@@ -1,12 +1,13 @@
-from functools import cached_property
 from pathlib import Path
 from typing import Any
 
 from app.config import AppConfig
-from app.resources import Issue, IssueGroup, IssueStatus, Team
+from app.resources import Issue, IssueGroup, IssueStatus
 from core.date_ranges import DateRange
 from core.utils import avg
 from jira import JiraAPIClient, JiraCustomFieldsClient, JQLClient
+from teams import ABCTeamsClient, Team, TeamsClient
+from users import ABCUsersClient, UsersClient
 
 from .resources import TIME_METRICS
 
@@ -16,18 +17,33 @@ class App:
 
     def __init__(
         self,
-        api_client: JiraAPIClient | None = None,
-        cf_client: JiraCustomFieldsClient | None = None,
-        jql_client: JQLClient | None = None,
-        config: Path | AppConfig | None = None,
+        api_client: JiraAPIClient,
+        cf_client: JiraCustomFieldsClient,
+        jql_client: JQLClient,
+        users_client: ABCUsersClient,
+        teams_client: ABCTeamsClient,
     ) -> None:
         """Initialize class instance."""
-        self._config = self._load_config(config)
-        self._teams = self._config.teams
+        self._api_client = api_client
+        self._cf_client = cf_client
+        self._jql_client = jql_client
+        self._users_client = users_client
+        self._teams_client = teams_client
 
-        self._api_client = api_client or JiraAPIClient.from_config(self._config.api)
-        self._cf_client = cf_client or JiraCustomFieldsClient(self._api_client)
-        self._jql_client = jql_client or JQLClient()
+    @classmethod
+    def from_config(cls, config: Path | AppConfig | None = None) -> "App":
+        """Create an application from config."""
+        if not isinstance(config, AppConfig):
+            config = AppConfig.load(config)
+
+        api_client = JiraAPIClient.from_config(config.api)
+        return cls(
+            api_client=api_client,
+            cf_client=JiraCustomFieldsClient(api_client),
+            jql_client=JQLClient(),
+            users_client=UsersClient(api_client, config.users),
+            teams_client=TeamsClient(config.teams),
+        )
 
     # Public methods
 
@@ -45,23 +61,12 @@ class App:
 
     def get_team(self, shortcut: str | None = None) -> Team:
         """Get team by shortcut name."""
-        if shortcut is None:
-            return self.default_team
+        return self._teams_client.get_team(shortcut)
 
-        team = self._teams.get(shortcut)
-        if team is None:
-            raise ValueError(f"Team was not found by shortcut: {shortcut}")
-
-        return team
-
-    @cached_property
+    @property
     def default_team(self) -> Team:
         """Return configured default team."""
-        for team in self._teams.values():
-            if team.default:
-                return team
-
-        raise ValueError("Default team is not configured")
+        return self._teams_client.default_team
 
     def get_closed_issues(
         self,
@@ -70,7 +75,8 @@ class App:
         with_summary: bool = True,
     ) -> IssueGroup:
         """Return closed issues for a responsible user during a date range."""
-        username = self._resolve_user(responsible)
+        user = self._users_client.get_user(responsible)
+        username = user.username
         jql = self._jql_client.closed_issues(username, date_range)
 
         fields = ["key"]
@@ -125,23 +131,3 @@ class App:
                 metric_name: avg(values) for metric_name, values in metric_values.items()
             },
         )
-
-    # Private methods
-
-    def _resolve_user(self, username: str) -> str:
-        """Resolve the special user alias into a Jira username."""
-        if username != "me":
-            return username
-
-        name = self.me().get("name")
-        if not name or not isinstance(name, str):
-            raise RuntimeError("Unable to resolve current Jira user")
-
-        return name
-
-    def _load_config(self, config: Path | AppConfig | None) -> AppConfig:
-        """Load application config from a path or return a provided config."""
-        if isinstance(config, AppConfig):
-            return config
-
-        return AppConfig.load(config)

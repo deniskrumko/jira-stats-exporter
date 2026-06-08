@@ -1,5 +1,6 @@
 import argparse
 import json
+import traceback
 from pathlib import Path
 
 from rich import print
@@ -194,9 +195,10 @@ class CLIApp:
         try:
             config = AppConfig.load(args.config)
             self._cli_config = config.cli
-            self._app = App(config=config)
+            self._app = App.from_config(config)
         except Exception as e:
-            print(f"[red]Failed to init app:\n{e}[/]")
+            print(f"[red]Failed to init app:\n{e!r}[/]")
+            traceback.print_exception(e)
             exit(1)
 
     @property

@@ -20,6 +20,11 @@ default = true
 users = [
     "krumko",
 ]
+
+[users.aliases]
+bro = "solovyev"
+sis = "cherednichenko"
+gav = "baursak"
 ```
 
 # Basic usage

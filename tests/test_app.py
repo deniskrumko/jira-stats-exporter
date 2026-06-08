@@ -1,6 +1,6 @@
 import pytest
 
-from app.resources import Team
+from teams import Team
 
 
 def test_get_team_reads_default_team_config(app) -> None:

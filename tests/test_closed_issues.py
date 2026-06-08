@@ -1,7 +1,11 @@
 from datetime import date
 from typing import Any
 
+from app.app import App
 from core.date_ranges import DateRange
+from jira import JQLClient
+from teams import MockTeamsClient
+from users import MockUsersClient, User
 
 
 class FakeJiraAPIClient:
@@ -97,10 +101,16 @@ class FakeCustomFieldsClient:
         }.get(field_name, field_name)
 
 
-def test_closed_returns_issue_links_and_average_ttm(app) -> None:
+def test_closed_returns_issue_links_and_average_ttm() -> None:
     """Return closed issue links and average TTM from Jira search results."""
-    app._api_client = FakeJiraAPIClient()
-    app._cf_client = FakeCustomFieldsClient()
+    api_client = FakeJiraAPIClient()
+    app = App(
+        api_client=api_client,
+        cf_client=FakeCustomFieldsClient(),
+        jql_client=JQLClient(),
+        users_client=MockUsersClient({"me": User(username="krumko")}),
+        teams_client=MockTeamsClient({}),
+    )
     date_range = DateRange(start=date(2026, 5, 1), end=date(2026, 5, 31))
 
     issue_group = app.get_closed_issues("me", date_range)
@@ -115,7 +125,7 @@ def test_closed_returns_issue_links_and_average_ttm(app) -> None:
         "Time in Resolved": 600,
     }
 
-    assert app._api_client.search_calls[0]["fields"] == [
+    assert api_client.search_calls[0]["fields"] == [
         "key",
         "summary",
         "customfield_12602",
@@ -123,4 +133,22 @@ def test_closed_returns_issue_links_and_average_ttm(app) -> None:
         "customfield_12604",
         "customfield_12605",
     ]
-    assert "Responsibles in (krumko)" in app._api_client.search_calls[0]["jql"]
+    assert "Responsibles in (krumko)" in api_client.search_calls[0]["jql"]
+
+
+def test_closed_resolves_configured_user_alias() -> None:
+    """Resolve configured user aliases before building Jira queries."""
+    api_client = FakeJiraAPIClient()
+    app = App(
+        api_client=api_client,
+        cf_client=FakeCustomFieldsClient(),
+        jql_client=JQLClient(),
+        users_client=MockUsersClient({"arstan": User(username="turdubaev", aliases=["arstan"])}),
+        teams_client=MockTeamsClient({}),
+    )
+    date_range = DateRange(start=date(2026, 5, 1), end=date(2026, 5, 31))
+
+    issue_group = app.get_closed_issues("arstan", date_range)
+
+    assert issue_group.responsible == "turdubaev"
+    assert "Responsibles in (turdubaev)" in api_client.search_calls[0]["jql"]

@@ -25,6 +25,14 @@
 - Use python 3.13 syntax
 - Run `make fmt` to format code
 
+## Client Architecture
+
+- For every client, implement an abstract interface in `client.py`.
+- For every client, implement the real client in `client.py`.
+- For every client, implement the mock client in `mock.py`.
+- Always follow the Dependency Inversion Principle: high-level classes must depend on abstract interfaces, not concrete clients.
+- Client constructors should prefer required arguments without `None` defaults; if a client has its own config, provide a `from_config` class method that returns an instance.
+
 ## Testing Guidelines
 
 - Use `pytest` for unit tests
