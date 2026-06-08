@@ -11,7 +11,7 @@ class JiraAPIClient:
 
     def __init__(self, base_url: str, api_token: str) -> None:
         """Initialize class instance."""
-        self.base_url = base_url
+        self.base_url = base_url.rstrip("/")
         self.api_token = api_token
 
     @classmethod
@@ -48,6 +48,7 @@ class JiraAPIClient:
         }
         if fields is not None:
             payload["fields"] = fields
+
         return self._post("/rest/api/2/search", payload)
 
     def search_all(
@@ -70,6 +71,7 @@ class JiraAPIClient:
             total = payload.get("total")
             if not isinstance(total, int):
                 raise RuntimeError("Unexpected Jira search response")
+
             start_at += max_results
             if start_at >= total:
                 return

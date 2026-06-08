@@ -176,6 +176,7 @@ class CLIApp:
         if team:
             print(Panel.fit(f"[bold green]Team: {team}[/]", border_style="green"), end="\n\n")
 
+        total_tasks, total_ttm = 0, 0
         for index, user in enumerate(users):
             if index > 0:
                 print()
@@ -186,6 +187,12 @@ class CLIApp:
                 with_summary=args.issues,
             )
             self._print_issue_group(issue_group, show_details=args.issues)
+            total_tasks += issue_group.count
+            total_ttm += issue_group.total_ttm
+
+        if team:
+            avg_ttm = format_seconds(total_ttm // total_tasks)
+            print(f"\n[bold green]Total tasks: {total_tasks}\nAverage TTM: {avg_ttm}[/]")
 
     def _init_app(self, args: argparse.Namespace) -> None:
         """Initialize Jira stats exporter."""

@@ -50,3 +50,8 @@ class IssueGroup(BaseModel):
     def count(self) -> int:
         """Return the number of issues."""
         return len(self.issues)
+
+    @property
+    def total_ttm(self) -> int:
+        """Return the total time to resolve all issues."""
+        return sum(self.avg_time_in_status["TTM"] for issue in self.issues)
