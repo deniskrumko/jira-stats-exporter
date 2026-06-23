@@ -54,6 +54,10 @@ class Issue(BaseModel):
         return name if isinstance(name, str) else None
 
     @property
+    def labels(self) -> list[str]:
+        return self._fields.get("labels")
+
+    @property
     def description(self) -> str | None:
         """Return Jira issue description."""
         description = self._fields.get("description")

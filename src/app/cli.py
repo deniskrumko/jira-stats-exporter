@@ -192,6 +192,7 @@ class CLIApp:
         print_stat("Title", escape(issue.title or ""))
         print_stat("Assignee", escape(issue.assignee or ""))
         print_stat("Status", escape(issue.status or ""))
+        print_stat("Labels", ", ".join(issue.labels))
         print_stat("URL", escape(issue.url or ""))
         print_stat("Description", escape(issue.description or ""))
 
