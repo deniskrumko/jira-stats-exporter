@@ -4,6 +4,8 @@ from typing import Any
 
 import httpx
 
+from app.resources import Issue
+
 from .config import JiraAPIConfig
 
 
@@ -15,7 +17,7 @@ class ABCJiraAPIClient(ABC):
         """Fetch information about the authenticated Jira user."""
 
     @abstractmethod
-    def issue(self, key: str) -> dict[str, Any]:
+    def issue(self, key: str) -> Issue:
         """Fetch a Jira issue by its issue key."""
 
     @abstractmethod
@@ -69,9 +71,10 @@ class JiraAPIClient(ABCJiraAPIClient):
         """Fetch information about the authenticated Jira user."""
         return self._get("/rest/api/2/myself")
 
-    def issue(self, key: str) -> dict[str, Any]:
+    def issue(self, key: str) -> Issue:
         """Fetch a Jira issue by its issue key."""
-        return self._get(f"/rest/api/2/issue/{key}")
+        payload = self._get(f"/rest/api/2/issue/{key}")
+        return Issue(raw=payload, url=self.issue_url(key))
 
     def search(
         self,

@@ -1,6 +1,7 @@
 from enum import StrEnum
+from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from core.date_ranges import DateRange
 from core.utils import avg
@@ -23,22 +24,67 @@ class CLICommands(StrEnum):
     IN_PROGRESS = "inprogress"
 
 
-class IssueStatus(StrEnum):
-    """Jira issue status."""
-
-    CLOSED = "closed"
-
-
 class Issue(BaseModel):
     """Jira issue."""
 
-    url: str
-    summary: str | None
-    status: IssueStatus
+    raw: dict[str, Any] = Field(default_factory=dict)
+    url: str | None = None
 
     @property
     def code(self) -> str:
-        return self.url.split("/")[-1]
+        """Return Jira issue key."""
+        key = self.raw.get("key")
+        if isinstance(key, str):
+            return key
+
+        if self.url:
+            return self.url.split("/")[-1]
+
+        return ""
+
+    @property
+    def assignee(self) -> str | None:
+        """Return Jira issue assignee username."""
+        fields = self._fields
+        assignee = fields.get("assignee")
+        if not isinstance(assignee, dict):
+            return None
+
+        name = assignee.get("name")
+        return name if isinstance(name, str) else None
+
+    @property
+    def description(self) -> str | None:
+        """Return Jira issue description."""
+        description = self._fields.get("description")
+        return description if isinstance(description, str) else None
+
+    @property
+    def status(self) -> str | None:
+        """Return Jira issue status name."""
+        status = self._fields.get("status")
+        if not isinstance(status, dict):
+            return None
+
+        name = status.get("name")
+        return name if isinstance(name, str) else None
+
+    @property
+    def summary(self) -> str | None:
+        """Return Jira issue summary."""
+        summary = self._fields.get("summary")
+        return summary if isinstance(summary, str) else None
+
+    @property
+    def title(self) -> str | None:
+        """Return Jira issue title."""
+        return self.summary
+
+    @property
+    def _fields(self) -> dict[str, Any]:
+        """Return raw Jira issue fields."""
+        fields = self.raw.get("fields")
+        return fields if isinstance(fields, dict) else {}
 
 
 class IssueGroup(BaseModel):

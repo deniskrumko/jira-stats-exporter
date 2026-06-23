@@ -42,6 +42,11 @@ def build_parser() -> argparse.ArgumentParser:
         "key",
         help="Jira issue key, for example ML-1234",
     )
+    issue_parser.add_argument(
+        "--raw",
+        action="store_true",
+        help="Show raw Jira issue JSON",
+    )
 
     closed_parser = subparsers.add_parser(
         CLICommands.CLOSED,

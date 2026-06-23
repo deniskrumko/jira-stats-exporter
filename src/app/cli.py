@@ -3,11 +3,12 @@ import json
 import traceback
 
 from rich import print
+from rich.markup import escape
 from rich.panel import Panel
 
 from app.app import App
 from app.config import AppConfig, CLIConfig
-from app.resources import IssueGroup
+from app.resources import Issue, IssueGroup
 from core.cli_utils import print_stat
 from core.date_ranges import DateRange
 from core.utils import format_seconds, truncate
@@ -47,7 +48,7 @@ class CLIApp:
         if args.command == CLICommands.ME:
             self._show_me()
         elif args.command == CLICommands.ISSUE:
-            self._show_issue(args.key)
+            self._show_issue(args.key, raw=args.raw)
         elif args.command == CLICommands.CLOSED:
             self._show_closed(args)
         elif args.command == CLICommands.IN_PROGRESS:
@@ -76,10 +77,14 @@ class CLIApp:
         payload = self.app.me()
         self._print_json(payload)
 
-    def _show_issue(self, key: str) -> None:
+    def _show_issue(self, key: str, raw: bool = False) -> None:
         """Show Jira issue data."""
-        payload = self.app.issue(key)
-        self._print_json(payload)
+        issue = self.app.issue(key)
+        if raw:
+            self._print_json(issue.raw)
+            return
+
+        self._print_issue(issue)
 
     def _show_closed(self, args: argparse.Namespace) -> None:
         """Show closed issues."""
@@ -180,6 +185,15 @@ class CLIApp:
     def _print_json(payload: object) -> None:
         """Print payload as formatted JSON."""
         print(json.dumps(payload, indent=2, ensure_ascii=False))
+
+    @staticmethod
+    def _print_issue(issue: Issue) -> None:
+        """Print Jira issue details."""
+        print_stat("Title", escape(issue.title or ""))
+        print_stat("Assignee", escape(issue.assignee or ""))
+        print_stat("Status", escape(issue.status or ""))
+        print_stat("URL", escape(issue.url or ""))
+        print_stat("Description", escape(issue.description or ""))
 
     @staticmethod
     def _print_issues_number(issue_group: IssueGroup, display_name: str = "Issues") -> None:

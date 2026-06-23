@@ -1,6 +1,7 @@
 from collections.abc import Iterator
 from typing import Any
 
+from app.resources import Issue
 from jira.client import ABCJiraAPIClient
 from jira.custom_fields import ABCJiraCustomFieldsClient
 
@@ -16,9 +17,20 @@ class MockJiraAPIClient(ABCJiraAPIClient):
         """Return fake current user data."""
         return {"name": "krumko"}
 
-    def issue(self, key: str) -> dict[str, Any]:
+    def issue(self, key: str) -> Issue:
         """Return fake issue data."""
-        return {"key": key}
+        return Issue(
+            raw={
+                "key": key,
+                "fields": {
+                    "summary": "Fake issue summary",
+                    "assignee": {"name": "krumko"},
+                    "status": {"name": "Open"},
+                    "description": "Fake issue description",
+                },
+            },
+            url=self.issue_url(key),
+        )
 
     def search(
         self,

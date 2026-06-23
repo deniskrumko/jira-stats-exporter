@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Any
 
 from app.config import AppConfig
-from app.resources import Issue, IssueGroup, IssueStatus
+from app.resources import Issue, IssueGroup
 from core.date_ranges import DateRange
 from jira import (
     ABCJiraAPIClient,
@@ -56,13 +56,14 @@ class App:
         """Get information about the authenticated Jira user."""
         return self._api_client.me()
 
-    def issue(self, key: str, replace_custom_fields: bool = True) -> dict[str, Any]:
+    def issue(self, key: str, replace_custom_fields: bool = True) -> Issue:
         """Get Jira issue data with custom field IDs replaced by field names."""
-        response = self._api_client.issue(key)
+        issue = self._api_client.issue(key)
         if replace_custom_fields:
-            return self._cf_client.replace(response)
+            issue.raw = self._cf_client.replace(issue.raw)
+            return Issue(raw=issue.raw, url=issue.url)
 
-        return response
+        return issue
 
     def get_team(self, shortcut: str | None = None) -> Team:
         """Get team by shortcut name."""
@@ -138,12 +139,10 @@ class App:
                     raise RuntimeError("Unexpected Jira search response")
 
                 if isinstance(key, str):
-                    summary = fields.get("summary")
                     issue_results.append(
                         Issue(
                             url=self._api_client.issue_url(key),
-                            summary=summary if isinstance(summary, str) else None,
-                            status=IssueStatus.CLOSED,
+                            raw=issue,
                         )
                     )
 
