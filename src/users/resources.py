@@ -9,6 +9,9 @@ class User(BaseModel):
     username: str
     aliases: list[str] | None = None
 
+    def __str__(self) -> str:
+        return self.username
+
 
 class UsersConfig(BaseModel):
     """Configure user aliases for Jira commands."""

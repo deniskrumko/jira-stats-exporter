@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from typing import Protocol
 
 from .resources import CURRENT_USER_ALIAS, User, UsersConfig
@@ -7,7 +8,7 @@ from .resources import CURRENT_USER_ALIAS, User, UsersConfig
 class JiraMeClient(Protocol):
     """Jira client capable of returning the current user."""
 
-    def me(self) -> dict[str, object]:
+    def me(self) -> Mapping[str, object]:
         """Fetch information about the authenticated Jira user."""
         ...
 

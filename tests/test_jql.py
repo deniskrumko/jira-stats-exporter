@@ -2,12 +2,13 @@ from datetime import date
 
 from core.date_ranges import DateRange
 from jira.jql import JQLClient
+from users import User
 
 
 def test_closed_issues_builds_jql() -> None:
     """Build JQL for closed issues."""
     jql = JQLClient().closed_issues(
-        "krumko",
+        User(username="krumko"),
         DateRange(start=date(2026, 5, 1), end=date(2026, 5, 31)),
     )
 
@@ -23,7 +24,7 @@ def test_closed_issues_builds_jql() -> None:
 def test_closed_issues_quotes_responsible_when_needed() -> None:
     """Quote responsible values with non-identifier characters."""
     jql = JQLClient().closed_issues(
-        "john smith",
+        User(username="john smith"),
         DateRange(start=date(2026, 5, 1), end=date(2026, 5, 31)),
     )
 

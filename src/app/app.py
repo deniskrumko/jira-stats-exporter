@@ -4,10 +4,15 @@ from typing import Any
 from app.config import AppConfig
 from app.resources import Issue, IssueGroup, IssueStatus
 from core.date_ranges import DateRange
-from core.utils import avg
-from jira import JiraAPIClient, JiraCustomFieldsClient, JQLClient
+from jira import (
+    ABCJiraAPIClient,
+    ABCJiraCustomFieldsClient,
+    JiraAPIClient,
+    JiraCustomFieldsClient,
+    JQLClient,
+)
 from teams import ABCTeamsClient, Team, TeamsClient
-from users import ABCUsersClient, UsersClient
+from users import ABCUsersClient, User, UsersClient
 
 from .resources import TIME_METRICS
 
@@ -17,8 +22,8 @@ class App:
 
     def __init__(
         self,
-        api_client: JiraAPIClient,
-        cf_client: JiraCustomFieldsClient,
+        api_client: ABCJiraAPIClient,
+        cf_client: ABCJiraCustomFieldsClient,
         jql_client: JQLClient,
         users_client: ABCUsersClient,
         teams_client: ABCTeamsClient,
@@ -76,20 +81,46 @@ class App:
     ) -> IssueGroup:
         """Return closed issues for a responsible user during a date range."""
         user = self._users_client.get_user(responsible)
-        username = user.username
-        jql = self._jql_client.closed_issues(username, date_range)
+        jql = self._jql_client.closed_issues(user, date_range)
+        fields = self._get_fields(with_summary)
+        return self._get_issue_group(jql, fields, user=user)
 
+    def get_in_progress_issues(
+        self,
+        assignee: str,
+        with_summary: bool = True,
+    ) -> IssueGroup:
+        """Return closed issues for a responsible user during a date range."""
+        user = self._users_client.get_user(assignee)
+        jql = self._jql_client.in_progress_issues(user)
+        fields = self._get_fields(with_summary)
+        return self._get_issue_group(jql, fields, user=user)
+
+    def _get_fields(self, with_summary: bool = True, with_metrics: bool = True) -> list[str]:
         fields = ["key"]
         if with_summary:
             fields.append("summary")
 
-        metric_fields = {
+        if with_metrics:
+            fields.extend(self._get_metric_fields().values())
+
+        return fields
+
+    def _get_metric_fields(self) -> dict[str, str]:
+        return {
             metric_name: self._cf_client.get_field_by_name(metric_name)
             for metric_name in TIME_METRICS
         }
-        fields.extend(metric_fields.values())
 
+    def _get_issue_group(
+        self,
+        jql: str,
+        fields: list[str],
+        *,
+        user: User | None = None,
+    ) -> IssueGroup:
         metric_values: dict[str, list[int]] = {metric_name: [] for metric_name in TIME_METRICS}
+        metric_fields = self._get_metric_fields()
         issue_results: list[Issue] = []
 
         for payload in self._api_client.search_all(jql, fields=fields):
@@ -100,10 +131,12 @@ class App:
             for issue in issues:
                 if not isinstance(issue, dict):
                     continue
+
                 key = issue.get("key")
                 fields = issue.get("fields")
                 if not isinstance(fields, dict):
                     raise RuntimeError("Unexpected Jira search response")
+
                 if isinstance(key, str):
                     summary = fields.get("summary")
                     issue_results.append(
@@ -124,10 +157,7 @@ class App:
                     metric_values[metric_name].append(value)
 
         return IssueGroup(
-            responsible=username,
-            date_range=date_range,
+            user=user,
             issues=issue_results,
-            avg_time_in_status={
-                metric_name: avg(values) for metric_name, values in metric_values.items()
-            },
+            metrics=metric_values,
         )

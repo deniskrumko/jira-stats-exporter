@@ -3,7 +3,7 @@ from rich import print
 
 def print_stat(
     label: str,
-    value: str,
+    value: object,
     label_color: str | None = "bold",
     value_color: str | None = "yellow",
 ) -> None:

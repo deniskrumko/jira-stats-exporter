@@ -1,16 +1,37 @@
 import json
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, overload
 
-from jira.client import JiraAPIClient
+from jira.client import ABCJiraAPIClient
 
 
-class JiraCustomFieldsClient:
+class ABCJiraCustomFieldsClient(ABC):
+    """Define the Jira custom fields client interface."""
+
+    @abstractmethod
+    def get_fields(self) -> dict[str, str]:
+        """Return Jira custom field ID-to-name mappings."""
+
+    @abstractmethod
+    def get_field_by_name(self, field_name: str) -> str:
+        """Return a custom field ID by name or the original field name."""
+
+    @abstractmethod
+    def replace(
+        self,
+        payload: dict,
+        fields: dict[str, str] | None = None,
+    ) -> dict:
+        """Replace custom field IDs in a Jira payload with human-readable names."""
+
+
+class JiraCustomFieldsClient(ABCJiraCustomFieldsClient):
     """Load Jira custom field names and replace custom field IDs in payloads."""
 
     def __init__(
         self,
-        api: JiraAPIClient | None = None,
+        api: ABCJiraAPIClient | None = None,
         cache_path: Path = Path("/tmp/jira_stats_exporter") / "custom_fields.json",
         custom_fields: dict[str, str] | None = None,
     ) -> None:

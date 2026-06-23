@@ -3,6 +3,10 @@ from enum import StrEnum
 from pydantic import BaseModel
 
 from core.date_ranges import DateRange
+from core.utils import avg
+from users import User
+
+DEFAULT_TEAM_MARKER = "__default__"
 
 TIME_METRICS = (
     "TTM",
@@ -10,6 +14,13 @@ TIME_METRICS = (
     "Time in Review",
     "Time in Resolved",
 )
+
+
+class CLICommands(StrEnum):
+    ME = "me"
+    ISSUE = "issue"
+    CLOSED = "closed"
+    IN_PROGRESS = "inprogress"
 
 
 class IssueStatus(StrEnum):
@@ -33,14 +44,17 @@ class Issue(BaseModel):
 class IssueGroup(BaseModel):
     """Jira issues and aggregate timing stats."""
 
-    responsible: str
-    date_range: DateRange
     issues: list[Issue]
-    avg_time_in_status: dict[str, int]
+    user: User | None = None
+    date_range: DateRange | None = None
+    metrics: dict[str, list[int]] | None = None
 
     @property
     def issues_per_week(self) -> float | None:
         """Return issues per week for ranges longer than one week."""
+        if self.date_range is None:
+            raise ValueError("Can't get issues_per_week without date range")
+
         days = (self.date_range.end - self.date_range.start).days + 1
         if days <= 7:
             return None
@@ -54,4 +68,14 @@ class IssueGroup(BaseModel):
     @property
     def total_ttm(self) -> int:
         """Return the total time to resolve all issues."""
+        if self.avg_time_in_status is None:
+            raise ValueError("Can't get total ttm")
+
         return sum(self.avg_time_in_status["TTM"] for issue in self.issues)
+
+    @property
+    def avg_time_in_status(self) -> dict[str, int]:
+        if not self.metrics:
+            raise ValueError("No metrics")
+
+        return {metric_name: avg(values) for metric_name, values in self.metrics.items()}

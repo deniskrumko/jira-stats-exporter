@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from typing import Any
 
@@ -6,7 +7,46 @@ import httpx
 from .config import JiraAPIConfig
 
 
-class JiraAPIClient:
+class ABCJiraAPIClient(ABC):
+    """Define the Jira API client interface."""
+
+    @abstractmethod
+    def me(self) -> dict[str, Any]:
+        """Fetch information about the authenticated Jira user."""
+
+    @abstractmethod
+    def issue(self, key: str) -> dict[str, Any]:
+        """Fetch a Jira issue by its issue key."""
+
+    @abstractmethod
+    def search(
+        self,
+        jql: str,
+        fields: list[str] | None = None,
+        start_at: int = 0,
+        max_results: int = 50,
+    ) -> dict[str, Any]:
+        """Search Jira issues using JQL."""
+
+    @abstractmethod
+    def search_all(
+        self,
+        jql: str,
+        fields: list[str] | None = None,
+        max_results: int = 100,
+    ) -> Iterator[dict[str, Any]]:
+        """Yield all Jira search pages using JQL."""
+
+    @abstractmethod
+    def issue_url(self, key: str) -> str:
+        """Build a browser URL for a Jira issue key."""
+
+    @abstractmethod
+    def fields(self) -> list[Any]:
+        """Fetch Jira field metadata."""
+
+
+class JiraAPIClient(ABCJiraAPIClient):
     """HTTP client for Jira REST API endpoints used by the exporter."""
 
     def __init__(self, base_url: str, api_token: str) -> None:
