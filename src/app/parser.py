@@ -67,6 +67,12 @@ def build_parser() -> argparse.ArgumentParser:
     current_parser.set_defaults(command=CLICommands.CURRENT)
     add_config_argument(current_parser, argparse.SUPPRESS)
     add_issue_output_arguments(current_parser)
+    current_parser.add_argument(
+        "-o",
+        "--open",
+        action="store_true",
+        help="Open the Jira issue in a browser",
+    )
 
     closed_parser = subparsers.add_parser(
         CLICommands.CLOSED,

@@ -60,6 +60,7 @@ def test_parser_reads_current_command_alias() -> None:
 
     assert args.command == "cur"
     assert args.description is True
+    assert args.open is False
 
 
 def test_issue_command_prints_pretty_output_by_default(capsys) -> None:
@@ -110,3 +111,18 @@ def test_current_issue_command_uses_git_branch(monkeypatch, capsys) -> None:
 
     output = capsys.readouterr().out
     assert "URL: https://jira.example.test/browse/ML-1234" in output
+
+
+def test_current_issue_command_opens_issue_in_browser(monkeypatch) -> None:
+    """Open the current issue URL in a browser when requested."""
+    monkeypatch.setattr(
+        "app.cli.subprocess.run",
+        lambda *args, **kwargs: CompletedProcess(args, 0, stdout="ML-1234\n"),
+    )
+    opened_urls = []
+    monkeypatch.setattr("app.cli.webbrowser.open", opened_urls.append)
+    args = build_parser().parse_args(["cur", "-o"])
+
+    CLIApp(FakeApp()).run(args)
+
+    assert opened_urls == ["https://jira.example.test/browse/ML-1234"]

@@ -2,6 +2,7 @@ import argparse
 import json
 import subprocess
 import traceback
+import webbrowser
 
 from rich import print
 from rich.markup import escape
@@ -58,6 +59,7 @@ class CLIApp:
             self._show_current_issue(
                 raw=args.raw,
                 show_description=args.description,
+                open_in_browser=args.open,
             )
         elif args.command == CLICommands.CLOSED:
             self._show_closed(args)
@@ -92,9 +94,13 @@ class CLIApp:
         key: str,
         raw: bool = False,
         show_description: bool = False,
+        open_in_browser: bool = False,
     ) -> None:
         """Show Jira issue data."""
         issue = self.app.issue(key)
+        if open_in_browser and issue.url:
+            webbrowser.open(issue.url)
+
         if raw:
             self._print_json(issue.raw)
             return
@@ -105,12 +111,14 @@ class CLIApp:
         self,
         raw: bool = False,
         show_description: bool = False,
+        open_in_browser: bool = False,
     ) -> None:
         """Show Jira issue for the current Git branch."""
         self._show_issue(
             self._current_branch(),
             raw=raw,
             show_description=show_description,
+            open_in_browser=open_in_browser,
         )
 
     def _show_closed(self, args: argparse.Namespace) -> None:
