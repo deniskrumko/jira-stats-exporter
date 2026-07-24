@@ -17,6 +17,21 @@ def add_config_argument(
     )
 
 
+def add_issue_output_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add Jira issue output options to a command parser."""
+    parser.add_argument(
+        "--raw",
+        action="store_true",
+        help="Show raw Jira issue JSON",
+    )
+    parser.add_argument(
+        "-d",
+        "--description",
+        action="store_true",
+        help="Show Jira issue description",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build and configure the command-line argument parser."""
     parser = argparse.ArgumentParser(
@@ -42,11 +57,16 @@ def build_parser() -> argparse.ArgumentParser:
         "key",
         help="Jira issue key, for example ML-1234",
     )
-    issue_parser.add_argument(
-        "--raw",
-        action="store_true",
-        help="Show raw Jira issue JSON",
+    add_issue_output_arguments(issue_parser)
+
+    current_parser = subparsers.add_parser(
+        CLICommands.CURRENT,
+        aliases=["current"],
+        help="Show Jira issue for the current Git branch",
     )
+    current_parser.set_defaults(command=CLICommands.CURRENT)
+    add_config_argument(current_parser, argparse.SUPPRESS)
+    add_issue_output_arguments(current_parser)
 
     closed_parser = subparsers.add_parser(
         CLICommands.CLOSED,

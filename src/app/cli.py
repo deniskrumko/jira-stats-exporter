@@ -1,5 +1,6 @@
 import argparse
 import json
+import subprocess
 import traceback
 
 from rich import print
@@ -48,7 +49,16 @@ class CLIApp:
         if args.command == CLICommands.ME:
             self._show_me()
         elif args.command == CLICommands.ISSUE:
-            self._show_issue(args.key, raw=args.raw)
+            self._show_issue(
+                args.key,
+                raw=args.raw,
+                show_description=args.description,
+            )
+        elif args.command == CLICommands.CURRENT:
+            self._show_current_issue(
+                raw=args.raw,
+                show_description=args.description,
+            )
         elif args.command == CLICommands.CLOSED:
             self._show_closed(args)
         elif args.command == CLICommands.IN_PROGRESS:
@@ -77,14 +87,31 @@ class CLIApp:
         payload = self.app.me()
         self._print_json(payload)
 
-    def _show_issue(self, key: str, raw: bool = False) -> None:
+    def _show_issue(
+        self,
+        key: str,
+        raw: bool = False,
+        show_description: bool = False,
+    ) -> None:
         """Show Jira issue data."""
         issue = self.app.issue(key)
         if raw:
             self._print_json(issue.raw)
             return
 
-        self._print_issue(issue)
+        self._print_issue(issue, show_description=show_description)
+
+    def _show_current_issue(
+        self,
+        raw: bool = False,
+        show_description: bool = False,
+    ) -> None:
+        """Show Jira issue for the current Git branch."""
+        self._show_issue(
+            self._current_branch(),
+            raw=raw,
+            show_description=show_description,
+        )
 
     def _show_closed(self, args: argparse.Namespace) -> None:
         """Show closed issues."""
@@ -128,6 +155,24 @@ class CLIApp:
             )
 
     # HELPERS
+
+    @staticmethod
+    def _current_branch() -> str:
+        """Return the current Git branch name."""
+        try:
+            branch = subprocess.run(
+                ["git", "branch", "--show-current"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+        except (OSError, subprocess.CalledProcessError) as error:
+            raise SystemExit("Unable to determine the current Git branch") from error
+
+        if not branch:
+            raise SystemExit("No current Git branch is checked out")
+
+        return branch
 
     def _get_users_and_team(
         self,
@@ -187,14 +232,15 @@ class CLIApp:
         print(json.dumps(payload, indent=2, ensure_ascii=False))
 
     @staticmethod
-    def _print_issue(issue: Issue) -> None:
+    def _print_issue(issue: Issue, show_description: bool = False) -> None:
         """Print Jira issue details."""
         print_stat("Title", escape(issue.title or ""))
         print_stat("Assignee", escape(issue.assignee or ""))
         print_stat("Status", escape(issue.status or ""))
         print_stat("Labels", ", ".join(issue.labels))
         print_stat("URL", escape(issue.url or ""))
-        print_stat("Description", escape(issue.description or ""))
+        if show_description:
+            print_stat("Description", escape(issue.description or ""))
 
     @staticmethod
     def _print_issues_number(issue_group: IssueGroup, display_name: str = "Issues") -> None:

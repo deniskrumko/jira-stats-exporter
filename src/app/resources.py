@@ -20,6 +20,7 @@ TIME_METRICS = (
 class CLICommands(StrEnum):
     ME = "me"
     ISSUE = "issue"
+    CURRENT = "cur"
     CLOSED = "closed"
     IN_PROGRESS = "inprogress"
 
@@ -55,7 +56,12 @@ class Issue(BaseModel):
 
     @property
     def labels(self) -> list[str]:
-        return self._fields.get("labels")
+        """Return Jira issue labels."""
+        labels = self._fields.get("labels")
+        if not isinstance(labels, list):
+            return []
+
+        return [label for label in labels if isinstance(label, str)]
 
     @property
     def description(self) -> str | None:
