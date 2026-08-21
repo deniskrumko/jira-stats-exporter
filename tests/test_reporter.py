@@ -113,9 +113,9 @@ def test_html_reporter_writes_safe_complete_report(tmp_path: Path) -> None:
     assert path.suffix == ".html"
     html = path.read_text(encoding="utf-8")
     assert "2026-05-01 — 2026-05-07" in html
-    assert "Closed (1)" in html
-    assert "In progress (0)" in html
-    assert "Created (1)" in html
+    assert 'Tasks in status "Closed" (1)' in html
+    assert 'Tasks in status "In progress" (0)' in html
+    assert 'Tasks in status "Created" (1)' in html
     assert "Fix &lt;script&gt;alert(1)&lt;/script&gt;" in html
     assert "User krumko" in html
     assert 'target="_blank" rel="noopener noreferrer">ML-1</a>' in html
