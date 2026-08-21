@@ -24,6 +24,7 @@ class CLICommands(StrEnum):
     CLOSED = "closed"
     CREATED = "created"
     IN_PROGRESS = "inprogress"
+    REPORT = "report"
 
 
 class Issue(BaseModel):
@@ -31,6 +32,10 @@ class Issue(BaseModel):
 
     raw: dict[str, Any] = Field(default_factory=dict)
     url: str | None = None
+    metrics: dict[str, int | None] | None = None
+    epic_link: str | None = None
+    epic_url: str | None = None
+    epic_name: str | None = None
 
     @property
     def code(self) -> str:

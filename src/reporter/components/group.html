@@ -1,0 +1,10 @@
+<h3>{{ group_title }} ({{ issue_group.count }})</h3>
+{% if issue_group.issues %}
+<div class="issues">
+{% for issue in issue_group.issues %}
+{% include "issue.html" %}
+{% endfor %}
+</div>
+{% else %}
+<p class="empty">No issues</p>
+{% endif %}

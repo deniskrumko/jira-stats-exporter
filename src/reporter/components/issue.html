@@ -1,0 +1,25 @@
+<article class="issue">
+  <div class="issue-title">
+    <a href="{{ issue.url or '#' }}" target="_blank" rel="noopener noreferrer">{{ issue.code }}</a>
+    <strong>{{ issue.summary or "—" }}</strong>
+  </div>
+{% include "epic.html" %}
+  <div class="issue-meta">
+    <span class="status">{{ issue.status or "—" }}</span>
+{% if issue.labels %}
+{% for label in issue.labels %}
+    <span class="label">{{ label }}</span>
+{% endfor %}
+{% else %}
+    <span class="no-labels">No labels</span>
+{% endif %}
+  </div>
+  <div class="description">{{ render_jira_markup(issue.description, issue.url) | safe }}</div>
+  <div class="metrics">
+{% set metrics = issue.metrics or {} %}
+{% for metric_name in time_metrics %}
+{% set seconds = metrics.get(metric_name) %}
+    <div class="metric"><span>{{ metric_name }}</span>{{ "—" if seconds is none else format_duration(seconds) }}</div>
+{% endfor %}
+  </div>
+</article>

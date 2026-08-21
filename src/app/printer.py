@@ -29,6 +29,9 @@ class CLIPrinter:
         print_stat("Status", escape(issue.status or ""))
         print_stat("Labels", ", ".join(issue.labels))
         print_stat("URL", escape(issue.url or ""))
+        if issue.epic_link:
+            print_stat("Epic Link", escape(issue.epic_url or ""))
+            print_stat("Epic Name", escape(issue.epic_name or ""))
         if show_description:
             print_stat("Description", escape(issue.description or ""))
 

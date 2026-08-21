@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none';
+    script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; connect-src 'none';
+    object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Jira report {{ date_range.start.strftime("%Y-%m-%d") }} — {{ date_range.end.strftime("%Y-%m-%d") }}</title>
+  <style>
+{% include "styles.css" %}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Jira report</h1>
+    <div class="meta">Date range: {{ date_range.start.strftime("%Y-%m-%d") }} — {{ date_range.end.strftime("%Y-%m-%d") }}</div>
+    <div class="meta">Created: {{ created_at.strftime("%Y-%m-%d %H:%M:%S %Z") }}</div>
+  </header>
+{% for report in reports %}
+{% include "user.html" %}
+{% endfor %}
+</main>
+</body>
+</html>

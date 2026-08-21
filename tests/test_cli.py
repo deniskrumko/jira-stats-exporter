@@ -4,6 +4,7 @@ from subprocess import CompletedProcess
 from app.cli import DEFAULT_TEAM_MARKER, CLIApp, build_parser
 from app.resources import Issue, IssueGroup
 from core.date_ranges import DateRange
+from reporter import MockReporterClient
 from teams import Team
 from users import User
 
@@ -11,12 +12,13 @@ from users import User
 class FakeApp:
     """Provide issue data for CLI tests."""
 
-    def __init__(self, empty_closed: bool = False) -> None:
+    def __init__(self, empty_closed: bool = False, with_epic: bool = True) -> None:
         """Initialize class instance."""
         self.created_calls: list[tuple[str, DateRange]] = []
         self.closed_calls: list[tuple[str, DateRange, bool]] = []
         self.in_progress_calls: list[str] = []
         self.empty_closed = empty_closed
+        self.with_epic = with_epic
 
     def me(self) -> dict[str, str]:
         """Return a fake current Jira user."""
@@ -28,14 +30,17 @@ class FakeApp:
             raw={
                 "key": key,
                 "fields": {
-                    "summary": "Настройка выгрузки",
+                    "summary": "Report configuration",
                     "assignee": {"name": "krumko"},
-                    "status": {"name": "Открытая"},
+                    "status": {"name": "Open"},
                     "labels": [],
-                    "description": "Описание задачи",
+                    "description": "Issue description",
                 },
             },
             url=f"https://jira.example.test/browse/{key}",
+            epic_link="ML-2161" if self.with_epic else None,
+            epic_url="https://jira.example.test/browse/ML-2161" if self.with_epic else None,
+            epic_name="Platform epic" if self.with_epic else None,
         )
 
     def get_created_issues(self, creator: str, date_range: DateRange) -> IssueGroup:
@@ -135,6 +140,16 @@ def test_parser_reads_created_team() -> None:
     assert args.team == "ml"
 
 
+def test_parser_reads_report_team_and_date_range() -> None:
+    """Read team and date range options for the report command."""
+    args = build_parser().parse_args(["report", "--team", "ml", "--week", "0"])
+
+    assert args.command == "report"
+    assert args.team == "ml"
+    assert args.user == "me"
+    assert args.week == 0
+
+
 def test_me_command_prints_current_user(capsys) -> None:
     """Dispatch and print the current user command."""
     args = build_parser().parse_args(["me"])
@@ -151,10 +166,12 @@ def test_issue_command_prints_pretty_output_by_default(capsys) -> None:
     CLIApp(FakeApp()).run(args)
 
     output = capsys.readouterr().out
-    assert "Title: Настройка выгрузки" in output
+    assert "Title: Report configuration" in output
     assert "Assignee: krumko" in output
-    assert "Status: Открытая" in output
+    assert "Status: Open" in output
     assert "URL: https://jira.example.test/browse/ML-1234" in output
+    assert "Epic Link: https://jira.example.test/browse/ML-2161" in output
+    assert "Epic Name: Platform epic" in output
     assert "Description:" not in output
 
 
@@ -165,7 +182,18 @@ def test_issue_command_prints_description_with_flag(capsys) -> None:
     CLIApp(FakeApp()).run(args)
 
     output = capsys.readouterr().out
-    assert "Description: Описание задачи" in output
+    assert "Description: Issue description" in output
+
+
+def test_issue_command_hides_epic_when_issue_has_no_epic(capsys) -> None:
+    """Do not print epic fields when an issue has no epic link."""
+    args = build_parser().parse_args(["issue", "ML-1234"])
+
+    CLIApp(FakeApp(with_epic=False)).run(args)
+
+    output = capsys.readouterr().out
+    assert "Epic Link:" not in output
+    assert "Epic Name:" not in output
 
 
 def test_issue_command_prints_raw_json(capsys) -> None:
@@ -176,7 +204,7 @@ def test_issue_command_prints_raw_json(capsys) -> None:
 
     output = capsys.readouterr().out
     assert '"key": "ML-1234"' in output
-    assert '"summary": "Настройка выгрузки"' in output
+    assert '"summary": "Report configuration"' in output
     assert "Title:" not in output
 
 
@@ -287,3 +315,40 @@ def test_closed_team_with_no_issues_prints_zero_average(capsys) -> None:
     output = capsys.readouterr().out
     assert "Total tasks: 0" in output
     assert "Average TTM: 0h 0m" in output
+
+
+def test_report_command_creates_and_opens_current_user_report(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """Create a current-user report and open its file URL."""
+    report_path = tmp_path / "jira-report.html"
+    reporter = MockReporterClient(report_path)
+    opened_urls: list[str] = []
+    monkeypatch.setattr("app.cli.webbrowser.open", opened_urls.append)
+    args = build_parser().parse_args(["report", "--from", "2026-05-01", "--to", "2026-05-31"])
+
+    CLIApp(FakeApp(), reporter).run(args)
+
+    date_range = DateRange(start="2026-05-01", end="2026-05-31")
+    assert reporter.calls == [(["me"], date_range)]
+    assert opened_urls == [report_path.resolve().as_uri()]
+    output = capsys.readouterr().out
+    assert "Preparing report" in output
+    assert "Generating report" in output
+    assert "jira-report.html" in output
+    assert "Opening report in browser" in output
+
+
+def test_report_command_uses_configured_team(tmp_path: Path, monkeypatch) -> None:
+    """Create a report for every selected team user."""
+    reporter = MockReporterClient(tmp_path / "jira-report.html")
+    monkeypatch.setattr("app.cli.webbrowser.open", lambda _url: None)
+    args = build_parser().parse_args(
+        ["report", "--team", "ml", "--from", "2026-05-01", "--to", "2026-05-31"]
+    )
+
+    CLIApp(FakeApp(), reporter).run(args)
+
+    assert reporter.calls[0][0] == ["krumko", "pupa"]
