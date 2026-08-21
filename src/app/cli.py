@@ -1,23 +1,23 @@
 import argparse
-import json
 import subprocess
 import traceback
 import webbrowser
+from collections.abc import Callable
 
 from rich import print
-from rich.markup import escape
-from rich.panel import Panel
 
 from app.app import App
 from app.config import AppConfig, CLIConfig
-from app.resources import Issue, IssueGroup
-from core.cli_utils import print_stat
+from app.printer import CLIPrinter
+from app.resources import IssueGroup
 from core.date_ranges import DateRange
-from core.utils import format_seconds, truncate
 from teams import Team
 
 from .parser import build_parser
 from .resources import DEFAULT_TEAM_MARKER, CLICommands
+
+type IssueGroupLoader = Callable[[str], IssueGroup]
+type IssueGroupRenderer = Callable[[IssueGroup], None]
 
 
 def main() -> None:
@@ -34,7 +34,7 @@ class CLIApp:
     def __init__(self, exporter: App | None = None) -> None:
         """Initialize class instance."""
         self._app = exporter
-        self._cli_config = CLIConfig()
+        self._printer = CLIPrinter(CLIConfig())
 
     @property
     def app(self) -> App:
@@ -46,27 +46,19 @@ class CLIApp:
     def run(self, args: argparse.Namespace) -> None:
         """Run the selected CLI command."""
         self._init_app(args)
-
-        if args.command == CLICommands.ME:
-            self._show_me()
-        elif args.command == CLICommands.ISSUE:
-            self._show_issue(
-                args.key,
-                raw=args.raw,
-                show_description=args.description,
-            )
-        elif args.command == CLICommands.CURRENT:
-            self._show_current_issue(
-                raw=args.raw,
-                show_description=args.description,
-                open_in_browser=args.open,
-            )
-        elif args.command == CLICommands.CLOSED:
-            self._show_closed(args)
-        elif args.command == CLICommands.IN_PROGRESS:
-            self._show_in_progress(args)
-        else:
-            raise SystemExit(f"Unknown command: {args.command}")
+        handlers: dict[CLICommands, Callable[[argparse.Namespace], None]] = {
+            CLICommands.ME: self._show_me,
+            CLICommands.ISSUE: self._show_issue_command,
+            CLICommands.CURRENT: self._show_current_issue_command,
+            CLICommands.CLOSED: self._show_closed,
+            CLICommands.CREATED: self._show_created,
+            CLICommands.IN_PROGRESS: self._show_in_progress,
+        }
+        try:
+            handler = handlers[CLICommands(args.command)]
+        except (KeyError, ValueError) as error:
+            raise SystemExit(f"Unknown command: {args.command}") from error
+        handler(args)
 
     def _init_app(self, args: argparse.Namespace) -> None:
         """Initialize Jira stats exporter."""
@@ -75,7 +67,7 @@ class CLIApp:
 
         try:
             config = AppConfig.load(args.config)
-            self._cli_config = config.cli
+            self._printer = CLIPrinter(config.cli)
             self._app = App.from_config(config)
         except Exception as e:
             print(f"[red]Failed to init app:\n{e!r}[/]")
@@ -84,10 +76,27 @@ class CLIApp:
 
     # COMMANDS
 
-    def _show_me(self) -> None:
+    def _show_me(self, _: argparse.Namespace) -> None:
         """Show current Jira user data."""
         payload = self.app.me()
-        self._print_json(payload)
+        self._printer.print_json(payload)
+
+    def _show_issue_command(self, args: argparse.Namespace) -> None:
+        """Show Jira issue data for parsed CLI arguments."""
+        self._show_issue(
+            args.key,
+            raw=args.raw,
+            show_description=args.description,
+        )
+
+    def _show_current_issue_command(self, args: argparse.Namespace) -> None:
+        """Show the current Jira issue for parsed CLI arguments."""
+        self._show_issue(
+            self._current_branch(),
+            raw=args.raw,
+            show_description=args.description,
+            open_in_browser=args.open,
+        )
 
     def _show_issue(
         self,
@@ -102,67 +111,82 @@ class CLIApp:
             webbrowser.open(issue.url)
 
         if raw:
-            self._print_json(issue.raw)
+            self._printer.print_json(issue.raw)
             return
 
-        self._print_issue(issue, show_description=show_description)
-
-    def _show_current_issue(
-        self,
-        raw: bool = False,
-        show_description: bool = False,
-        open_in_browser: bool = False,
-    ) -> None:
-        """Show Jira issue for the current Git branch."""
-        self._show_issue(
-            self._current_branch(),
-            raw=raw,
-            show_description=show_description,
-            open_in_browser=open_in_browser,
-        )
+        self._printer.print_issue(issue, show_description=show_description)
 
     def _show_closed(self, args: argparse.Namespace) -> None:
         """Show closed issues."""
-        try:
-            date_range = DateRange.resolve(**vars(args))
-        except ValueError as error:
-            raise SystemExit(str(error)) from error
-
-        users, team = self._get_users_and_team(args)
-        total_tasks, total_ttm = 0, 0
-        for index, user in enumerate(users):
-            if index > 0:
-                print()
-
-            issue_group = self.app.get_closed_issues(
+        date_range = self._resolve_date_range(args)
+        issue_groups, team = self._show_for_users(
+            args,
+            lambda user: self.app.get_closed_issues(
                 user,
                 date_range,
                 with_summary=args.issues,
-            )
-            self._print_issue_group(issue_group, show_details=args.issues)
-            total_tasks += issue_group.count
-            total_ttm += issue_group.total_ttm
+            ),
+            lambda issue_group: self._printer.print_issue_group(
+                issue_group,
+                show_details=args.issues,
+            ),
+        )
 
         if team:
-            avg_ttm = format_seconds(total_ttm // total_tasks)
-            print(f"\n[bold green]Total tasks: {total_tasks}\nAverage TTM: {avg_ttm}[/]")
+            self._printer.print_team_summary(issue_groups)
 
     def _show_in_progress(self, args: argparse.Namespace) -> None:
         """Show in-progress issues."""
-        users, _ = self._get_users_and_team(args)
-
-        for index, user in enumerate(users):
-            if index > 0:
-                print()
-
-            issue_group = self.app.get_in_progress_issues(user)
-            self._print_issue_group(
+        self._show_for_users(
+            args,
+            self.app.get_in_progress_issues,
+            lambda issue_group: self._printer.print_issue_group(
                 issue_group,
                 show_issues_number=False,
                 show_metrics=False,
-            )
+            ),
+        )
+
+    def _show_created(self, args: argparse.Namespace) -> None:
+        """Show issues created by a user during a date range."""
+        date_range = self._resolve_date_range(args)
+        self._show_for_users(
+            args,
+            lambda user: self.app.get_created_issues(user, date_range),
+            lambda issue_group: self._printer.print_issue_group(
+                issue_group,
+                show_metrics=False,
+            ),
+        )
 
     # HELPERS
+
+    @staticmethod
+    def _resolve_date_range(args: argparse.Namespace) -> DateRange:
+        """Resolve and validate date range arguments."""
+        try:
+            return DateRange.resolve(**vars(args))
+        except ValueError as error:
+            raise SystemExit(str(error)) from error
+
+    def _show_for_users(
+        self,
+        args: argparse.Namespace,
+        loader: IssueGroupLoader,
+        renderer: IssueGroupRenderer,
+    ) -> tuple[list[IssueGroup], Team | None]:
+        """Load and render issue groups for selected users."""
+        users, team = self._get_users_and_team(args)
+        issue_groups: list[IssueGroup] = []
+        for index, user in enumerate(users):
+            if index > 0:
+                self._printer.print_separator()
+
+            issue_group = loader(user)
+            issue_groups.append(issue_group)
+            renderer(issue_group)
+
+        return issue_groups, team
 
     @staticmethod
     def _current_branch() -> str:
@@ -185,7 +209,6 @@ class CLIApp:
     def _get_users_and_team(
         self,
         args: argparse.Namespace,
-        display_team: bool = True,
     ) -> tuple[list[str], Team | None]:
         users: list[str] = [args.user]
         team = None
@@ -198,73 +221,7 @@ class CLIApp:
             except (FileNotFoundError, ValueError) as error:
                 raise SystemExit(str(error)) from error
 
-        if team and display_team:
-            print(Panel.fit(f"[bold green]Team: {team}[/]", border_style="green"), end="\n\n")
+        if team:
+            self._printer.print_team(team)
 
         return users, team
-
-    def _print_issue_group(
-        self,
-        issue_group: IssueGroup,
-        show_date_range: bool = True,
-        show_user: bool = True,
-        show_issues_number: bool = True,
-        show_metrics: bool = True,
-        show_details: bool = True,
-    ) -> None:
-        """Print closed issue statistics."""
-        if show_date_range and issue_group.date_range:
-            print_stat("Date Range", issue_group.date_range.colored_string, value_color=None)
-
-        if show_user and issue_group.user:
-            print_stat("User", issue_group.user)
-
-        if show_issues_number:
-            self._print_issues_number(issue_group)
-
-        if show_metrics:
-            for metric_name, avg_time in (issue_group.avg_time_in_status or {}).items():
-                print_stat(f"Avg {metric_name}", format_seconds(avg_time))
-
-        if show_details:
-            prefix = "\n" if show_metrics else ""
-            suffix = " [red]no issues[/]" if not issue_group.issues else ""
-            print(f"{prefix}[bold]Issues:[/]{suffix}")
-            for issue in issue_group.issues:
-                summary = truncate(issue.summary or "", self._cli_config.max_summary_length)
-                print(f"[cyan bold link={issue.url}]{issue.code}[/]: {summary}")
-
-    @staticmethod
-    def _print_json(payload: object) -> None:
-        """Print payload as formatted JSON."""
-        print(json.dumps(payload, indent=2, ensure_ascii=False))
-
-    @staticmethod
-    def _print_issue(issue: Issue, show_description: bool = False) -> None:
-        """Print Jira issue details."""
-        print_stat("Title", escape(issue.title or ""))
-        print_stat("Assignee", escape(issue.assignee or ""))
-        print_stat("Status", escape(issue.status or ""))
-        print_stat("Labels", ", ".join(issue.labels))
-        print_stat("URL", escape(issue.url or ""))
-        if show_description:
-            print_stat("Description", escape(issue.description or ""))
-
-    @staticmethod
-    def _print_issues_number(issue_group: IssueGroup, display_name: str = "Issues") -> None:
-        """Format the closed issues statistic line."""
-        value_color = "yellow not b"
-
-        # No tasks closed in 3 days - bad
-        if issue_group.count == 0 and issue_group.date_range and issue_group.date_range.days >= 3:
-            value_color = "red"
-
-        # More than 3 tasks per week - good
-        elif issue_group.count > 3 and issue_group.date_range and issue_group.date_range.days <= 7:
-            value_color = "green"
-
-        line = str(issue_group.count)
-        if issue_group.date_range and issue_group.issues_per_week:
-            line += f" [dim]({issue_group.issues_per_week:.1f}/week)[/dim]"
-
-        print_stat(display_name, line, value_color=value_color)

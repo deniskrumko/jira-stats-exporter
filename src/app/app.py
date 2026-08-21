@@ -97,6 +97,24 @@ class App:
         fields = self._get_fields(with_summary)
         return self._get_issue_group(jql, fields, user=user)
 
+    def get_created_issues(
+        self,
+        creator: str,
+        date_range: DateRange,
+        with_summary: bool = True,
+    ) -> IssueGroup:
+        """Return issues created by a user during a date range."""
+        user = self._users_client.get_user(creator)
+        jql = self._jql_client.created_issues(user, date_range)
+        fields = self._get_fields(with_summary, with_metrics=False)
+        return self._get_issue_group(
+            jql,
+            fields,
+            user=user,
+            date_range=date_range,
+            with_metrics=False,
+        )
+
     def _get_fields(self, with_summary: bool = True, with_metrics: bool = True) -> list[str]:
         fields = ["key"]
         if with_summary:
@@ -119,9 +137,11 @@ class App:
         fields: list[str],
         *,
         user: User | None = None,
+        date_range: DateRange | None = None,
+        with_metrics: bool = True,
     ) -> IssueGroup:
-        metric_values: dict[str, list[int]] = {metric_name: [] for metric_name in TIME_METRICS}
-        metric_fields = self._get_metric_fields()
+        metric_fields = self._get_metric_fields() if with_metrics else {}
+        metric_values = {metric_name: [] for metric_name in metric_fields}
         issue_results: list[Issue] = []
 
         for payload in self._api_client.search_all(jql, fields=fields):
@@ -157,6 +177,7 @@ class App:
 
         return IssueGroup(
             user=user,
+            date_range=date_range,
             issues=issue_results,
-            metrics=metric_values,
+            metrics=metric_values or None,
         )

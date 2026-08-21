@@ -22,6 +22,7 @@ class CLICommands(StrEnum):
     ISSUE = "issue"
     CURRENT = "cur"
     CLOSED = "closed"
+    CREATED = "created"
     IN_PROGRESS = "inprogress"
 
 

@@ -2,11 +2,25 @@ from pathlib import Path
 from subprocess import CompletedProcess
 
 from app.cli import DEFAULT_TEAM_MARKER, CLIApp, build_parser
-from app.resources import Issue
+from app.resources import Issue, IssueGroup
+from core.date_ranges import DateRange
+from teams import Team
+from users import User
 
 
 class FakeApp:
     """Provide issue data for CLI tests."""
+
+    def __init__(self, empty_closed: bool = False) -> None:
+        """Initialize class instance."""
+        self.created_calls: list[tuple[str, DateRange]] = []
+        self.closed_calls: list[tuple[str, DateRange, bool]] = []
+        self.in_progress_calls: list[str] = []
+        self.empty_closed = empty_closed
+
+    def me(self) -> dict[str, str]:
+        """Return a fake current Jira user."""
+        return {"name": "krumko"}
 
     def issue(self, key: str) -> Issue:
         """Return a fake Jira issue."""
@@ -23,6 +37,45 @@ class FakeApp:
             },
             url=f"https://jira.example.test/browse/{key}",
         )
+
+    def get_created_issues(self, creator: str, date_range: DateRange) -> IssueGroup:
+        """Return fake issues created by a user."""
+        self.created_calls.append((creator, date_range))
+        return IssueGroup(
+            issues=[self.issue("ML-1234")],
+            user=User(username=creator),
+            date_range=date_range,
+        )
+
+    def get_closed_issues(
+        self,
+        responsible: str,
+        date_range: DateRange,
+        with_summary: bool = True,
+    ) -> IssueGroup:
+        """Return fake closed issues for a user."""
+        self.closed_calls.append((responsible, date_range, with_summary))
+        issues = [] if self.empty_closed else [self.issue("ML-1234")]
+        return IssueGroup(
+            issues=issues,
+            user=User(username=responsible),
+            date_range=date_range,
+            metrics={"TTM": [] if self.empty_closed else [3600]},
+        )
+
+    def get_in_progress_issues(self, assignee: str) -> IssueGroup:
+        """Return fake in-progress issues for a user."""
+        self.in_progress_calls.append(assignee)
+        return IssueGroup(
+            issues=[self.issue("ML-1234")],
+            user=User(username=assignee),
+        )
+
+    def get_team(self, shortcut: str | None = None) -> Team:
+        """Return a fake configured team."""
+        if shortcut not in (None, "ml"):
+            raise ValueError("Team was not found")
+        return Team(name="ML team", users=["krumko", "pupa"], default=shortcut is None)
 
 
 def test_parser_keeps_config_before_command() -> None:
@@ -61,6 +114,34 @@ def test_parser_reads_current_command_alias() -> None:
     assert args.command == "cur"
     assert args.description is True
     assert args.open is False
+
+
+def test_parser_reads_created_user_and_date_range() -> None:
+    """Read creator and explicit date range for the created command."""
+    args = build_parser().parse_args(
+        ["created", "--user", "krumko", "--from", "2026-05-01", "--to", "2026-05-31"]
+    )
+
+    assert args.command == "created"
+    assert args.user == "krumko"
+    assert args.from_date == "2026-05-01"
+    assert args.to_date == "2026-05-31"
+
+
+def test_parser_reads_created_team() -> None:
+    """Read a configured team for the created command."""
+    args = build_parser().parse_args(["created", "--team", "ml", "--month", "0"])
+
+    assert args.team == "ml"
+
+
+def test_me_command_prints_current_user(capsys) -> None:
+    """Dispatch and print the current user command."""
+    args = build_parser().parse_args(["me"])
+
+    CLIApp(FakeApp()).run(args)
+
+    assert '"name": "krumko"' in capsys.readouterr().out
 
 
 def test_issue_command_prints_pretty_output_by_default(capsys) -> None:
@@ -126,3 +207,83 @@ def test_current_issue_command_opens_issue_in_browser(monkeypatch) -> None:
     CLIApp(FakeApp()).run(args)
 
     assert opened_urls == ["https://jira.example.test/browse/ML-1234"]
+
+
+def test_created_command_requests_and_prints_created_issues(capsys) -> None:
+    """Request created issues for the selected user and date range."""
+    app = FakeApp()
+    args = build_parser().parse_args(
+        ["created", "-u", "krumko", "--from", "2026-05-01", "--to", "2026-05-31"]
+    )
+
+    CLIApp(app).run(args)
+
+    assert app.created_calls == [
+        (
+            "krumko",
+            DateRange(start="2026-05-01", end="2026-05-31"),
+        )
+    ]
+    output = capsys.readouterr().out
+    assert "2026-05-01 – 2026-05-31" in output
+    assert "ML-1234" in output
+
+
+def test_created_command_requests_issues_for_each_team_user(capsys) -> None:
+    """Request created issues for every configured team user."""
+    app = FakeApp()
+    args = build_parser().parse_args(
+        ["created", "--team", "ml", "--from", "2026-05-01", "--to", "2026-05-31"]
+    )
+
+    CLIApp(app).run(args)
+
+    assert [creator for creator, _ in app.created_calls] == ["krumko", "pupa"]
+    output = capsys.readouterr().out
+    assert "Team: ML team" in output
+    assert "User: krumko" in output
+    assert "User: pupa" in output
+
+
+def test_closed_command_requests_closed_issues(capsys) -> None:
+    """Dispatch closed issues through the shared user workflow."""
+    app = FakeApp()
+    args = build_parser().parse_args(
+        ["closed", "-u", "krumko", "--from", "2026-05-01", "--to", "2026-05-31"]
+    )
+
+    CLIApp(app).run(args)
+
+    assert app.closed_calls == [
+        (
+            "krumko",
+            DateRange(start="2026-05-01", end="2026-05-31"),
+            False,
+        )
+    ]
+    assert "Avg TTM: 1h 0m" in capsys.readouterr().out
+
+
+def test_in_progress_command_requests_in_progress_issues(capsys) -> None:
+    """Dispatch in-progress issues through the shared user workflow."""
+    app = FakeApp()
+    args = build_parser().parse_args(["inprogress", "-u", "krumko"])
+
+    CLIApp(app).run(args)
+
+    assert app.in_progress_calls == ["krumko"]
+    assert "ML-1234" in capsys.readouterr().out
+
+
+def test_closed_team_with_no_issues_prints_zero_average(capsys) -> None:
+    """Print zero team average when no team member closed an issue."""
+    app = FakeApp(empty_closed=True)
+    args = build_parser().parse_args(
+        ["closed", "--team", "ml", "--from", "2026-05-01", "--to", "2026-05-31"]
+    )
+
+    CLIApp(app).run(args)
+
+    output = capsys.readouterr().out
+    assert "Total tasks: 0" in output
+    assert "Average TTM: 0h 0m" in output

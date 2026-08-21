@@ -32,6 +32,71 @@ def add_issue_output_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_user_argument(parser: argparse.ArgumentParser, role: str) -> None:
+    """Add a Jira username option to a command parser."""
+    parser.add_argument(
+        "-u",
+        "--user",
+        default="me",
+        help=f"Jira {role} username or 'me'",
+    )
+
+
+def add_team_argument(parser: argparse.ArgumentParser) -> None:
+    """Add a configured team option to a command parser."""
+    parser.add_argument(
+        "-t",
+        "--team",
+        nargs="?",
+        const=DEFAULT_TEAM_MARKER,
+        help="Use configured team users, optionally by shortcut",
+    )
+
+
+def add_date_range_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add date range options to a command parser."""
+    parser.add_argument(
+        "-w",
+        "--week",
+        type=int,
+        help="ISO week number or negative relative week",
+    )
+    parser.add_argument(
+        "-q",
+        "--quarter",
+        type=int,
+        help="Quarter number or negative relative quarter",
+    )
+    parser.add_argument(
+        "-m",
+        "--month",
+        type=int,
+        help="Month number or negative relative month",
+    )
+    parser.add_argument(
+        "-d",
+        "--day",
+        type=int,
+        help="Day of year or negative relative day",
+    )
+    parser.add_argument(
+        "--from",
+        dest="from_date",
+        help="Range start date in YYYY-MM-DD",
+    )
+    parser.add_argument(
+        "--to",
+        dest="to_date",
+        help="Range end date in YYYY-MM-DD",
+    )
+    parser.add_argument(
+        "-y",
+        "--year",
+        type=int,
+        help="Year for positive week, month, or day",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build and configure the command-line argument parser."""
     parser = argparse.ArgumentParser(
@@ -80,59 +145,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     add_config_argument(closed_parser, argparse.SUPPRESS)
-    closed_parser.add_argument(
-        "-u",
-        "--user",
-        default="me",
-        help="Jira responsible username or 'me'",
-    )
-    closed_parser.add_argument(
-        "-t",
-        "--team",
-        nargs="?",
-        const=DEFAULT_TEAM_MARKER,
-        help="Use configured team users, optionally by shortcut",
-    )
-    closed_parser.add_argument(
-        "-w",
-        "--week",
-        type=int,
-        help="ISO week number or negative relative week",
-    )
-    closed_parser.add_argument(
-        "-q",
-        "--quarter",
-        type=int,
-        help="Quarter number or negative relative quarter",
-    )
-    closed_parser.add_argument(
-        "-m",
-        "--month",
-        type=int,
-        help="Month number or negative relative month",
-    )
-    closed_parser.add_argument(
-        "-d",
-        "--day",
-        type=int,
-        help="Day of year or negative relative day",
-    )
-    closed_parser.add_argument(
-        "--from",
-        dest="from_date",
-        help="Range start date in YYYY-MM-DD",
-    )
-    closed_parser.add_argument(
-        "--to",
-        dest="to_date",
-        help="Range end date in YYYY-MM-DD",
-    )
-    closed_parser.add_argument(
-        "-y",
-        "--year",
-        type=int,
-        help="Year for positive week, month, or day",
-    )
+    add_user_argument(closed_parser, "responsible")
+    add_team_argument(closed_parser)
+    add_date_range_arguments(closed_parser)
     closed_parser.add_argument(
         "-i",
         "--issues",
@@ -140,23 +155,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="Show closed issue links",
     )
 
+    created_parser = subparsers.add_parser(
+        CLICommands.CREATED,
+        help="Show Jira issues created by a user",
+    )
+    add_config_argument(created_parser, argparse.SUPPRESS)
+    add_user_argument(created_parser, "creator")
+    add_team_argument(created_parser)
+    add_date_range_arguments(created_parser)
+
     in_progress_parser = subparsers.add_parser(
         CLICommands.IN_PROGRESS,
         help="Show in-progress Jira issue links",
     )
     add_config_argument(in_progress_parser, argparse.SUPPRESS)
-    in_progress_parser.add_argument(
-        "-u",
-        "--user",
-        default="me",
-        help="Jira responsible username or 'me'",
-    )
-    in_progress_parser.add_argument(
-        "-t",
-        "--team",
-        nargs="?",
-        const=DEFAULT_TEAM_MARKER,
-        help="Use configured team users, optionally by shortcut",
-    )
+    add_user_argument(in_progress_parser, "responsible")
+    add_team_argument(in_progress_parser)
 
     return parser

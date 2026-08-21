@@ -37,3 +37,5 @@ gav = "baursak"
 - `issue <issue_id>` - show details for a specific issue
 - `closed --week 0` - show closed issues for the current week
 - `closed --team backend --quarter -1` - show closed issues for past quarter for team backend
+- `created --user krumko --month 0` - show issues created by a user this month
+- `created --team backend --quarter -1` - show issues created by team members last quarter

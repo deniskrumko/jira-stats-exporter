@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from core.date_ranges import DateRange
 from users import User
 
@@ -35,6 +37,15 @@ class JQLClient:
         """Build JQL for closed issues within an inclusive date range."""
         statuses = ", ".join(self._quote_value(status) for status in IN_PROGRESS_STATUSES)
         return f"assignee in ({self._quote_value(user.username)}) AND status in ({statuses})\n"
+
+    def created_issues(self, user: User, date_range: DateRange) -> str:
+        """Build JQL for issues created by a user within an inclusive date range."""
+        end = date_range.end + timedelta(days=1)
+        return (
+            f"creator in ({self._quote_value(user.username)})\n"
+            f'AND created >= "{date_range.start.isoformat()}"\n'
+            f'AND created < "{end.isoformat()}"'
+        )
 
     def _quote_value(self, value: str) -> str:
         """Quote a JQL value when it contains non-identifier characters."""

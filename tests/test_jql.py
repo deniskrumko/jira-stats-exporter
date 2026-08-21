@@ -29,3 +29,23 @@ def test_closed_issues_quotes_responsible_when_needed() -> None:
     )
 
     assert jql.startswith('Responsibles in ("john smith")')
+
+
+def test_created_issues_builds_jql() -> None:
+    """Build JQL for issues created by a user."""
+    jql = JQLClient().created_issues(
+        User(username="krumko"),
+        DateRange(start=date(2026, 5, 1), end=date(2026, 5, 31)),
+    )
+
+    assert jql == ('creator in (krumko)\nAND created >= "2026-05-01"\nAND created < "2026-06-01"')
+
+
+def test_created_issues_quotes_creator_when_needed() -> None:
+    """Quote creator values with non-identifier characters."""
+    jql = JQLClient().created_issues(
+        User(username="john smith"),
+        DateRange(start=date(2026, 5, 1), end=date(2026, 5, 31)),
+    )
+
+    assert jql.startswith('creator in ("john smith")')
