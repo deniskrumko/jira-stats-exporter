@@ -1,0 +1,7 @@
+{% if issue.epic_name %}
+{% if issue.epic_url %}
+  <div class="epic">Epic: <a href="{{ issue.epic_url }}" target="_blank" rel="noopener noreferrer">{{ issue.epic_name }}</a></div>
+{% else %}
+  <div class="epic">Epic: {{ issue.epic_name }}</div>
+{% endif %}
+{% endif %}

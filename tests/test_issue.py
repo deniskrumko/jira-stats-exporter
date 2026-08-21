@@ -7,8 +7,9 @@ from users import MockUsersClient, User
 
 def test_app_issue_returns_issue_with_raw_payload() -> None:
     """Return Jira issue model with raw payload and derived fields."""
+    api_client = MockJiraAPIClient()
     app = App(
-        api_client=MockJiraAPIClient(),
+        api_client=api_client,
         cf_client=MockJiraCustomFieldsClient(),
         jql_client=JQLClient(),
         users_client=MockUsersClient({"me": User(username="krumko")}),
@@ -24,3 +25,7 @@ def test_app_issue_returns_issue_with_raw_payload() -> None:
     assert issue.status == "Open"
     assert issue.url == "https://jira.example.test/browse/ML-1234"
     assert issue.description == "Fake issue description"
+    assert issue.epic_link == "ML-2161"
+    assert issue.epic_url == "https://jira.example.test/browse/ML-2161"
+    assert issue.epic_name == "Platform epic"
+    assert api_client.issue_calls == ["ML-1234", "ML-2161"]

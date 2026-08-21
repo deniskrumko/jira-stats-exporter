@@ -172,4 +172,13 @@ def build_parser() -> argparse.ArgumentParser:
     add_user_argument(in_progress_parser, "responsible")
     add_team_argument(in_progress_parser)
 
+    report_parser = subparsers.add_parser(
+        CLICommands.REPORT,
+        help="Create and open an HTML Jira report",
+    )
+    add_config_argument(report_parser, argparse.SUPPRESS)
+    add_user_argument(report_parser, "report user")
+    add_team_argument(report_parser)
+    add_date_range_arguments(report_parser)
+
     return parser

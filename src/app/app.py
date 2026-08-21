@@ -11,6 +11,7 @@ from jira import (
     JiraCustomFieldsClient,
     JQLClient,
 )
+from reporter import ReportProgress, UserReport
 from teams import ABCTeamsClient, Team, TeamsClient
 from users import ABCUsersClient, User, UsersClient
 
@@ -34,6 +35,7 @@ class App:
         self._jql_client = jql_client
         self._users_client = users_client
         self._teams_client = teams_client
+        self._epic_names: dict[str, str | None] = {}
 
     @classmethod
     def from_config(cls, config: Path | AppConfig | None = None) -> "App":
@@ -61,7 +63,14 @@ class App:
         issue = self._api_client.issue(key)
         if replace_custom_fields:
             issue.raw = self._cf_client.replace(issue.raw)
-            return Issue(raw=issue.raw, url=issue.url)
+            result = Issue(raw=issue.raw, url=issue.url)
+            fields = issue.raw.get("fields")
+            if isinstance(fields, dict):
+                epic_link = fields.get("Epic Link")
+                if epic_link is not None and not isinstance(epic_link, str):
+                    raise ValueError(f"Unexpected Jira field Epic Link: {epic_link}")
+                self._attach_epic(result, epic_link)
+            return result
 
         return issue
 
@@ -115,10 +124,76 @@ class App:
             with_metrics=False,
         )
 
-    def _get_fields(self, with_summary: bool = True, with_metrics: bool = True) -> list[str]:
+    def get_report_data(
+        self,
+        username: str,
+        date_range: DateRange,
+        progress: ReportProgress | None = None,
+    ) -> UserReport:
+        """Return complete categorized issue data for one report user."""
+        user = self._users_client.get_user(username)
+        fields = self._get_fields(with_details=True)
+        epic_field = self._cf_client.get_field_by_name("Epic Link")
+        self._notify_report_progress(progress, user, "Loading closed issues")
+        closed = self._get_issue_group(
+            self._jql_client.closed_issues(user, date_range),
+            fields,
+            user=user,
+            date_range=date_range,
+            epic_field=epic_field,
+        )
+        self._notify_report_progress(progress, user, "Loading in-progress issues")
+        in_progress = self._get_issue_group(
+            self._jql_client.in_progress_issues(user),
+            fields,
+            user=user,
+            epic_field=epic_field,
+        )
+        self._notify_report_progress(progress, user, "Loading created issues")
+        created = self._get_issue_group(
+            self._jql_client.created_issues(user, date_range),
+            fields,
+            user=user,
+            date_range=date_range,
+            epic_field=epic_field,
+        )
+        return UserReport(
+            user=user,
+            closed=closed,
+            in_progress=in_progress,
+            created=created,
+        )
+
+    @staticmethod
+    def _notify_report_progress(
+        progress: ReportProgress | None,
+        user: User,
+        stage: str,
+    ) -> None:
+        """Send progress for one user report data stage."""
+        if progress is not None:
+            progress(f"{user.username}: {stage}")
+
+    def _get_fields(
+        self,
+        with_summary: bool = True,
+        with_metrics: bool = True,
+        with_details: bool = False,
+    ) -> list[str]:
+        """Return Jira fields needed for an issue search."""
         fields = ["key"]
         if with_summary:
             fields.append("summary")
+
+        if with_details:
+            fields.extend(
+                [
+                    "description",
+                    "status",
+                    "labels",
+                    self._cf_client.get_field_by_name("Epic Link"),
+                ]
+            )
 
         if with_metrics:
             fields.extend(self._get_metric_fields().values())
@@ -139,6 +214,7 @@ class App:
         user: User | None = None,
         date_range: DateRange | None = None,
         with_metrics: bool = True,
+        epic_field: str | None = None,
     ) -> IssueGroup:
         metric_fields = self._get_metric_fields() if with_metrics else {}
         metric_values = {metric_name: [] for metric_name in metric_fields}
@@ -158,22 +234,29 @@ class App:
                 if not isinstance(fields, dict):
                     raise RuntimeError("Unexpected Jira search response")
 
-                if isinstance(key, str):
-                    issue_results.append(
-                        Issue(
-                            url=self._api_client.issue_url(key),
-                            raw=issue,
-                        )
-                    )
-
+                issue_metrics: dict[str, int | None] = {}
                 for metric_name, field_name in metric_fields.items():
                     value = fields.get(field_name)
                     if value is None:
+                        issue_metrics[metric_name] = None
                         continue
 
                     if not isinstance(value, int):
                         raise ValueError(f"Unexpected Jira field {field_name}: {value}")
+                    issue_metrics[metric_name] = value
                     metric_values[metric_name].append(value)
+
+                if isinstance(key, str):
+                    epic_link = fields.get(epic_field) if epic_field else None
+                    if epic_link is not None and not isinstance(epic_link, str):
+                        raise ValueError(f"Unexpected Jira field {epic_field}: {epic_link}")
+                    issue_result = Issue(
+                        url=self._api_client.issue_url(key),
+                        raw=issue,
+                        metrics=issue_metrics or None,
+                    )
+                    self._attach_epic(issue_result, epic_link)
+                    issue_results.append(issue_result)
 
         return IssueGroup(
             user=user,
@@ -181,3 +264,17 @@ class App:
             issues=issue_results,
             metrics=metric_values or None,
         )
+
+    def _attach_epic(self, issue: Issue, epic_link: str | None) -> None:
+        """Attach an epic URL and resolved summary to a Jira issue."""
+        if not epic_link:
+            return
+        issue.epic_link = epic_link
+        issue.epic_url = self._api_client.issue_url(epic_link)
+        issue.epic_name = self._get_epic_name(epic_link)
+
+    def _get_epic_name(self, epic_link: str) -> str | None:
+        """Return a cached epic issue summary."""
+        if epic_link not in self._epic_names:
+            self._epic_names[epic_link] = self._api_client.issue(epic_link).summary
+        return self._epic_names[epic_link]

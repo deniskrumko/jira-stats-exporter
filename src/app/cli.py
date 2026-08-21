@@ -11,6 +11,7 @@ from app.config import AppConfig, CLIConfig
 from app.printer import CLIPrinter
 from app.resources import IssueGroup
 from core.date_ranges import DateRange
+from reporter import ABCReporterClient, HTMLReporter
 from teams import Team
 
 from .parser import build_parser
@@ -31,9 +32,14 @@ def main() -> None:
 class CLIApp:
     """Run CLI commands for the Jira stats exporter."""
 
-    def __init__(self, exporter: App | None = None) -> None:
+    def __init__(
+        self,
+        exporter: App | None = None,
+        reporter: ABCReporterClient | None = None,
+    ) -> None:
         """Initialize class instance."""
         self._app = exporter
+        self._reporter = reporter
         self._printer = CLIPrinter(CLIConfig())
 
     @property
@@ -42,6 +48,13 @@ class CLIApp:
         if self._app is None:
             raise RuntimeError("Jira stats exporter is not initialized")
         return self._app
+
+    @property
+    def reporter(self) -> ABCReporterClient:
+        """Return initialized report client."""
+        if self._reporter is None:
+            raise RuntimeError("Reporter client is not initialized")
+        return self._reporter
 
     def run(self, args: argparse.Namespace) -> None:
         """Run the selected CLI command."""
@@ -53,6 +66,7 @@ class CLIApp:
             CLICommands.CLOSED: self._show_closed,
             CLICommands.CREATED: self._show_created,
             CLICommands.IN_PROGRESS: self._show_in_progress,
+            CLICommands.REPORT: self._show_report,
         }
         try:
             handler = handlers[CLICommands(args.command)]
@@ -69,6 +83,7 @@ class CLIApp:
             config = AppConfig.load(args.config)
             self._printer = CLIPrinter(config.cli)
             self._app = App.from_config(config)
+            self._reporter = HTMLReporter(self._app.get_report_data)
         except Exception as e:
             print(f"[red]Failed to init app:\n{e!r}[/]")
             traceback.print_exception(e)
@@ -158,6 +173,25 @@ class CLIApp:
                 show_metrics=False,
             ),
         )
+
+    def _show_report(self, args: argparse.Namespace) -> None:
+        """Create and open an HTML report."""
+        date_range = self._resolve_date_range(args)
+        users, _ = self._get_users_and_team(args)
+        self._print_report_progress("Preparing report")
+        report_path = self.reporter.create_report(
+            users,
+            date_range,
+            progress=self._print_report_progress,
+        ).resolve()
+        print(f"[green]Report created: {report_path}[/]")
+        self._print_report_progress("Opening report in browser")
+        webbrowser.open(report_path.as_uri())
+
+    @staticmethod
+    def _print_report_progress(message: str) -> None:
+        """Print one report generation progress stage."""
+        print(f"[cyan]→[/] {message}")
 
     # HELPERS
 

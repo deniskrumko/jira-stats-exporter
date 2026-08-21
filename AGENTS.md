@@ -17,6 +17,7 @@
 
 ## Coding Style
 
+- Write all source code, user-facing text, CLI and HTML output, tests, fixtures, comments, and documentation in English.
 - Add docstrings to created classes, methods and functions. Docstrings only in English. Always single-line docstrings, without args/return. Only one-line summary. For `__init__` methods write """Initialize class instance.""".
 - Avoid generic docstrings that start with words like "Represent"; describe the model directly.
 - Use Pydantic `BaseModel` for structured data models instead of dataclasses.

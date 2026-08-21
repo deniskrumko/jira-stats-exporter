@@ -12,6 +12,7 @@ class MockJiraAPIClient(ABCJiraAPIClient):
     def __init__(self) -> None:
         """Initialize class instance."""
         self.search_calls: list[dict[str, Any]] = []
+        self.issue_calls: list[str] = []
 
     def me(self) -> dict[str, Any]:
         """Return fake current user data."""
@@ -19,15 +20,20 @@ class MockJiraAPIClient(ABCJiraAPIClient):
 
     def issue(self, key: str) -> Issue:
         """Return fake issue data."""
+        self.issue_calls.append(key)
+        summary = "Platform epic" if key == "ML-2161" else "Fake issue summary"
+        fields: dict[str, Any] = {
+            "summary": summary,
+            "assignee": {"name": "krumko"},
+            "status": {"name": "Open"},
+            "description": "Fake issue description",
+        }
+        if key != "ML-2161":
+            fields["Epic Link"] = "ML-2161"
         return Issue(
             raw={
                 "key": key,
-                "fields": {
-                    "summary": "Fake issue summary",
-                    "assignee": {"name": "krumko"},
-                    "status": {"name": "Open"},
-                    "description": "Fake issue description",
-                },
+                "fields": fields,
             },
             url=self.issue_url(key),
         )
@@ -55,20 +61,28 @@ class MockJiraAPIClient(ABCJiraAPIClient):
                     "key": "ML-1",
                     "fields": {
                         "summary": "Short issue summary",
+                        "description": "Fake issue description",
+                        "status": {"name": "In progress"},
+                        "labels": ["backend", "priority"],
                         "customfield_12602": 3600,
                         "customfield_12603": 1200,
                         "customfield_12604": 600,
                         "customfield_12605": 300,
+                        "customfield_12606": "ML-2161",
                     },
                 },
                 {
                     "key": "ML-2",
                     "fields": {
                         "summary": "A" * 120,
+                        "description": None,
+                        "status": {"name": "Open"},
+                        "labels": [],
                         "customfield_12602": 9000,
                         "customfield_12603": 2400,
                         "customfield_12604": 1800,
                         "customfield_12605": 900,
+                        "customfield_12606": None,
                     },
                 },
             ],
@@ -107,6 +121,7 @@ class MockJiraCustomFieldsClient(ABCJiraCustomFieldsClient):
             "customfield_12603": "Time in Progress",
             "customfield_12604": "Time in Review",
             "customfield_12605": "Time in Resolved",
+            "customfield_12606": "Epic Link",
         }
 
     def replace(

@@ -39,3 +39,6 @@ gav = "baursak"
 - `closed --team backend --quarter -1` - show closed issues for past quarter for team backend
 - `created --user krumko --month 0` - show issues created by a user this month
 - `created --team backend --quarter -1` - show issues created by team members last quarter
+- `report --week 0` - create and open an HTML report for the current user
+- `report --team --week 0` - create and open an HTML report for the default team
+- `report --team backend --quarter -1` - create a report for a configured team
