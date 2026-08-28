@@ -13,15 +13,28 @@
   </style>
 </head>
 <body>
-<main>
-  <header>
-    <h1>Jira report</h1>
-    <div class="meta">Date range: {{ date_range.start.strftime("%Y-%m-%d") }} — {{ date_range.end.strftime("%Y-%m-%d") }}</div>
-    <div class="meta">Created: {{ created_at.strftime("%Y-%m-%d %H:%M:%S %Z") }}</div>
-  </header>
+<main class="report-layout">
+  <aside class="user-navigation">
+    <h2>Users</h2>
+    <nav aria-label="Report users">
+      <ul>
 {% for report in reports %}
+        <li><a href="#user-{{ loop.index }}">{{ report.user.username }}</a></li>
+{% endfor %}
+      </ul>
+    </nav>
+  </aside>
+  <div class="report-content">
+    <header>
+      <h1>Jira report</h1>
+      <div class="meta">Date range: {{ date_range.start.strftime("%Y-%m-%d") }} — {{ date_range.end.strftime("%Y-%m-%d") }}</div>
+      <div class="meta">Created: {{ created_at.strftime("%Y-%m-%d %H:%M:%S %Z") }}</div>
+    </header>
+{% for report in reports %}
+{% set user_id = "user-" ~ loop.index %}
 {% include "user.html" %}
 {% endfor %}
+  </div>
 </main>
 </body>
 </html>

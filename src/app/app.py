@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from app.config import AppConfig
 from app.resources import Issue, IssueGroup
@@ -70,6 +70,7 @@ class App:
                 if epic_link is not None and not isinstance(epic_link, str):
                     raise ValueError(f"Unexpected Jira field Epic Link: {epic_link}")
                 self._attach_epic(result, epic_link)
+                self._attach_parent(result, fields.get("parent"))
             return result
 
         return issue
@@ -191,6 +192,9 @@ class App:
                     "description",
                     "status",
                     "labels",
+                    "assignee",
+                    "creator",
+                    "parent",
                     self._cf_client.get_field_by_name("Epic Link"),
                 ]
             )
@@ -256,6 +260,7 @@ class App:
                         metrics=issue_metrics or None,
                     )
                     self._attach_epic(issue_result, epic_link)
+                    self._attach_parent(issue_result, fields.get("parent"))
                     issue_results.append(issue_result)
 
         return IssueGroup(
@@ -278,3 +283,27 @@ class App:
         if epic_link not in self._epic_names:
             self._epic_names[epic_link] = self._api_client.issue(epic_link).summary
         return self._epic_names[epic_link]
+
+    def _attach_parent(self, issue: Issue, parent: object) -> None:
+        """Attach a parent issue link and summary to an issue."""
+        if parent is None:
+            return
+        if not isinstance(parent, dict):
+            raise ValueError(f"Unexpected Jira field parent: {parent}")
+        parent_payload = cast(dict[str, object], parent)
+
+        parent_link = parent_payload.get("key")
+        if not isinstance(parent_link, str):
+            return
+
+        issue.parent_link = parent_link
+        issue.parent_url = self._api_client.issue_url(parent_link)
+        parent_fields = parent_payload.get("fields")
+        if not isinstance(parent_fields, dict):
+            return
+        parent_fields_payload = cast(dict[str, object], parent_fields)
+
+        parent_name = parent_fields_payload.get("summary")
+        if parent_name is not None and not isinstance(parent_name, str):
+            raise ValueError(f"Unexpected Jira parent issue summary: {parent_name}")
+        issue.parent_name = parent_name

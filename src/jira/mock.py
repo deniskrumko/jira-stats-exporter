@@ -24,7 +24,8 @@ class MockJiraAPIClient(ABCJiraAPIClient):
         summary = "Platform epic" if key == "ML-2161" else "Fake issue summary"
         fields: dict[str, Any] = {
             "summary": summary,
-            "assignee": {"name": "krumko"},
+            "assignee": {"name": "krumko", "displayName": "Krumko"},
+            "creator": {"displayName": "Krumko"},
             "status": {"name": "Open"},
             "description": "Fake issue description",
         }
@@ -64,6 +65,8 @@ class MockJiraAPIClient(ABCJiraAPIClient):
                         "description": "Fake issue description",
                         "status": {"name": "In progress"},
                         "labels": ["backend", "priority"],
+                        "assignee": {"displayName": "John Doe"},
+                        "creator": {"displayName": "Jane Doe"},
                         "customfield_12602": 3600,
                         "customfield_12603": 1200,
                         "customfield_12604": 600,
@@ -78,6 +81,8 @@ class MockJiraAPIClient(ABCJiraAPIClient):
                         "description": None,
                         "status": {"name": "Open"},
                         "labels": [],
+                        "assignee": {"displayName": "John Doe"},
+                        "creator": {"displayName": "Jane Doe"},
                         "customfield_12602": 9000,
                         "customfield_12603": 2400,
                         "customfield_12604": 1800,

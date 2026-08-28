@@ -148,12 +148,6 @@ def build_parser() -> argparse.ArgumentParser:
     add_user_argument(closed_parser, "responsible")
     add_team_argument(closed_parser)
     add_date_range_arguments(closed_parser)
-    closed_parser.add_argument(
-        "-i",
-        "--issues",
-        action="store_true",
-        help="Show closed issue links",
-    )
 
     created_parser = subparsers.add_parser(
         CLICommands.CREATED,

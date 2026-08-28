@@ -22,6 +22,8 @@ def test_app_issue_returns_issue_with_raw_payload() -> None:
     assert issue.raw["key"] == "ML-1234"
     assert issue.title == "Fake issue summary"
     assert issue.assignee == "krumko"
+    assert issue.assignee_display_name == "Krumko"
+    assert issue.creator_display_name == "Krumko"
     assert issue.status == "Open"
     assert issue.url == "https://jira.example.test/browse/ML-1234"
     assert issue.description == "Fake issue description"
