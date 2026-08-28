@@ -3,6 +3,7 @@
     <a href="{{ issue.url or '#' }}" target="_blank" rel="noopener noreferrer">{{ issue.code }}</a>
     <strong>{{ issue.summary or "—" }}</strong>
   </div>
+  <div class="epic">Assignee: {{ issue.assignee_display_name or "—" }} / Creator: {{ issue.creator_display_name or "—" }}</div>
 {% include "epic.html" %}
   <div class="issue-meta">
     <span class="status">{{ issue.status or "—" }}</span>

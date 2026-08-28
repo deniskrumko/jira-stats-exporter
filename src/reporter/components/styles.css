@@ -8,8 +8,48 @@ body {
     color: #172b4d;
 }
 main {
-    width: min(1180px, calc(100% - 32px));
+    width: min(1440px, calc(100% - 32px));
     margin: 32px auto 64px;
+}
+.report-layout {
+    display: grid;
+    gap: 24px;
+    grid-template-columns: 180px minmax(0, 1fr);
+}
+.user-navigation {
+    align-self: start;
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 3px 14px #091e4226;
+    box-sizing: border-box;
+    max-width: 180px;
+    padding: 20px;
+    position: sticky;
+    top: 24px;
+}
+.user-navigation h2 {
+    font-size: 1rem;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+}
+.user-navigation ul {
+    display: grid;
+    gap: 4px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.user-navigation a {
+    border-radius: 6px;
+    color: #0052cc;
+    display: block;
+    overflow-wrap: anywhere;
+    padding: 7px 8px;
+    text-decoration: none;
+}
+.user-navigation a:hover,
+.user-navigation a:focus-visible {
+    background: #deebff;
 }
 header,
 .user {
@@ -32,6 +72,18 @@ h2 {
 h3 {
     margin-top: 28px;
 }
+.user {
+    scroll-margin-top: 16px;
+}
+.user-title {
+    background: inherit;
+    border-radius: 14px 14px 0 0;
+    margin: -24px -24px 20px;
+    padding: 24px 24px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
 .meta,
 .empty {
     color: #5e6c84;
@@ -43,6 +95,7 @@ h3 {
 .issue {
     border: 1px solid #dfe1e6;
     border-radius: 10px;
+    min-width: 0;
     padding: 18px;
 }
 .issue-title {
@@ -59,11 +112,14 @@ h3 {
 }
 .epic {
     color: #5e6c84;
-    font-size: 0.85rem;
-    margin-top: 5px;
+    font-size: 1rem;
+    margin-top: 8px;
 }
 .epic a {
     color: inherit;
+}
+.no-epic {
+    color: #bf2600;
 }
 .issue-meta {
     display: flex;
@@ -91,6 +147,10 @@ h3 {
     color: #bf2600;
 }
 .description {
+    box-sizing: border-box;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
     overflow-wrap: anywhere;
     line-height: 1.55;
     margin-top: 14px;
@@ -177,6 +237,11 @@ h3 {
     overflow-x: auto;
 }
 .description th,
+.description td,
+.description pre {
+    overflow-wrap: anywhere;
+}
+.description th,
 .description td {
     border: 1px solid #dfe1e6;
     padding: 7px 10px;
@@ -208,13 +273,30 @@ h3 {
     color: #5e6c84;
     font-size: 0.8rem;
 }
+@media (max-width: 800px) {
+    main {
+        margin-top: 16px;
+    }
+    .report-layout {
+        display: block;
+    }
+    .user-navigation {
+        margin-bottom: 16px;
+        position: static;
+    }
+    .user-navigation ul {
+        display: flex;
+        flex-wrap: wrap;
+    }
+}
 @media (prefers-color-scheme: dark) {
     body {
         background: #101214;
         color: #e6edf3;
     }
     header,
-    .user {
+    .user,
+    .user-navigation {
         background: #1b1f23;
     }
     .issue {
@@ -235,6 +317,9 @@ h3 {
     }
     .no-labels {
         background: #5c1f1a;
+        color: #ffb4a8;
+    }
+    .no-epic {
         color: #ffb4a8;
     }
     .description blockquote {

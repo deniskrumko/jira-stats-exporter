@@ -1,7 +1,15 @@
-{% if issue.epic_name %}
+{% if issue.parent_link %}
+{% if issue.parent_url %}
+  <div class="epic">Parent task: <a href="{{ issue.parent_url }}" target="_blank" rel="noopener noreferrer">{{ issue.parent_name or issue.parent_link }}</a></div>
+{% else %}
+  <div class="epic">Parent task: {{ issue.parent_name or issue.parent_link }}</div>
+{% endif %}
+{% elif issue.epic_name %}
 {% if issue.epic_url %}
   <div class="epic">Epic: <a href="{{ issue.epic_url }}" target="_blank" rel="noopener noreferrer">{{ issue.epic_name }}</a></div>
 {% else %}
   <div class="epic">Epic: {{ issue.epic_name }}</div>
 {% endif %}
+{% else %}
+  <div class="epic no-epic">Task has no parent task or epic link</div>
 {% endif %}

@@ -37,6 +37,9 @@ def test_app_returns_complete_report_data() -> None:
         "description",
         "status",
         "labels",
+        "assignee",
+        "creator",
+        "parent",
         "customfield_12606",
         "customfield_12602",
         "customfield_12603",
@@ -79,6 +82,8 @@ def test_html_reporter_writes_safe_complete_report(tmp_path: Path) -> None:
                 ),
                 "status": {"name": "In progress"},
                 "labels": ["backend", "needs <review>"],
+                "assignee": {"displayName": "John Doe"},
+                "creator": {"displayName": "Jane Doe"},
             },
         },
         url="https://jira.example.test/browse/ML-1?source=a&view=b",
@@ -118,7 +123,12 @@ def test_html_reporter_writes_safe_complete_report(tmp_path: Path) -> None:
     assert 'Tasks in status "Created" (1)' in html
     assert "Fix &lt;script&gt;alert(1)&lt;/script&gt;" in html
     assert "User krumko" in html
+    assert '<aside class="user-navigation">' in html
+    assert 'href="#user-1">krumko</a>' in html
+    assert '<section id="user-1" class="user">' in html
+    assert '<h1 class="user-title">User krumko</h1>' in html
     assert 'target="_blank" rel="noopener noreferrer">ML-1</a>' in html
+    assert "Assignee: John Doe / Creator: Jane Doe" in html
     assert 'href="https://example.com/docs?q=one&amp;lang=ru" target="_blank"' in html
     assert 'href="https://www.example.org/path" target="_blank"' in html
     assert "📎 attachment.png" in html
@@ -161,6 +171,37 @@ def test_html_reporter_shows_missing_labels(tmp_path: Path) -> None:
     html = reporter.create_report(["me"], date_range).read_text(encoding="utf-8")
 
     assert '<span class="no-labels">No labels</span>' in html
+    assert '<div class="epic no-epic">Task has no parent task or epic link</div>' in html
+
+
+def test_html_reporter_shows_parent_task_before_epic(tmp_path: Path) -> None:
+    """Show a linked parent task instead of an epic."""
+    date_range = DateRange(start=date(2026, 5, 1), end=date(2026, 5, 7))
+    issue = Issue(
+        raw={"key": "ML-1", "fields": {}},
+        parent_link="ML-2165",
+        parent_url="https://jira.example.test/browse/ML-2165",
+        parent_name="Prepare the Airflow 3 test environment",
+        epic_name="Platform epic",
+        epic_url="https://jira.example.test/browse/ML-2161",
+    )
+    group = IssueGroup(issues=[issue])
+    report = UserReport(
+        user=User(username="krumko"),
+        closed=group,
+        in_progress=IssueGroup(issues=[]),
+        created=IssueGroup(issues=[]),
+    )
+    reporter = HTMLReporter(
+        lambda _user, _date_range, _progress: report,
+        output_dir=tmp_path,
+    )
+
+    html = reporter.create_report(["me"], date_range).read_text(encoding="utf-8")
+
+    assert 'Parent task: <a href="https://jira.example.test/browse/ML-2165"' in html
+    assert ">Prepare the Airflow 3 test environment</a>" in html
+    assert "Epic: Platform epic" not in html
 
 
 def test_jira_markup_renders_rich_description() -> None:

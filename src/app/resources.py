@@ -36,6 +36,9 @@ class Issue(BaseModel):
     epic_link: str | None = None
     epic_url: str | None = None
     epic_name: str | None = None
+    parent_link: str | None = None
+    parent_url: str | None = None
+    parent_name: str | None = None
 
     @property
     def code(self) -> str:
@@ -59,6 +62,16 @@ class Issue(BaseModel):
 
         name = assignee.get("name")
         return name if isinstance(name, str) else None
+
+    @property
+    def assignee_display_name(self) -> str | None:
+        """Return Jira issue assignee display name."""
+        return self._get_user_display_name("assignee")
+
+    @property
+    def creator_display_name(self) -> str | None:
+        """Return Jira issue creator display name."""
+        return self._get_user_display_name("creator")
 
     @property
     def labels(self) -> list[str]:
@@ -101,6 +114,15 @@ class Issue(BaseModel):
         """Return raw Jira issue fields."""
         fields = self.raw.get("fields")
         return fields if isinstance(fields, dict) else {}
+
+    def _get_user_display_name(self, field_name: str) -> str | None:
+        """Return a Jira user display name from an issue field."""
+        user = self._fields.get(field_name)
+        if not isinstance(user, dict):
+            return None
+
+        display_name = user.get("displayName")
+        return display_name if isinstance(display_name, str) else None
 
 
 class IssueGroup(BaseModel):

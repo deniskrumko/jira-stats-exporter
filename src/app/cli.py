@@ -139,11 +139,9 @@ class CLIApp:
             lambda user: self.app.get_closed_issues(
                 user,
                 date_range,
-                with_summary=args.issues,
             ),
             lambda issue_group: self._printer.print_issue_group(
                 issue_group,
-                show_details=args.issues,
             ),
         )
 

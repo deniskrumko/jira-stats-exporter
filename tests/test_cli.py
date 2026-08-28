@@ -91,6 +91,7 @@ def test_parser_keeps_config_before_command() -> None:
 
     assert args.config == Path("config.test.toml")
     assert args.team == "ml"
+    assert not hasattr(args, "issues")
 
 
 def test_parser_reads_config_after_command() -> None:
@@ -286,10 +287,12 @@ def test_closed_command_requests_closed_issues(capsys) -> None:
         (
             "krumko",
             DateRange(start="2026-05-01", end="2026-05-31"),
-            False,
+            True,
         )
     ]
-    assert "Avg TTM: 1h 0m" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "Avg TTM: 1h 0m" in output
+    assert "ML-1234" in output
 
 
 def test_in_progress_command_requests_in_progress_issues(capsys) -> None:
