@@ -143,6 +143,7 @@ class CLIApp:
             ),
             lambda issue_group: self._printer.print_issue_group(
                 issue_group,
+                show_details=not args.stats_only,
             ),
         )
 
@@ -162,6 +163,7 @@ class CLIApp:
             ),
             lambda issue_group: self._printer.print_issue_group(
                 issue_group,
+                show_details=not args.stats_only,
             ),
         )
 
@@ -179,6 +181,7 @@ class CLIApp:
                 issue_group,
                 show_issues_number=False,
                 show_metrics=False,
+                show_details=not args.stats_only,
             ),
         )
         if args.jql:
@@ -193,6 +196,7 @@ class CLIApp:
             lambda issue_group: self._printer.print_issue_group(
                 issue_group,
                 show_metrics=False,
+                show_details=not args.stats_only,
             ),
         )
         if args.jql:

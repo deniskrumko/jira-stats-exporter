@@ -106,6 +106,16 @@ def add_jql_argument(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_stats_only_argument(parser: argparse.ArgumentParser) -> None:
+    """Add an option for hiding issue details from command output."""
+    parser.add_argument(
+        "-s",
+        "--stats-only",
+        action="store_true",
+        help="Show statistics without issue details",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build and configure the command-line argument parser."""
     parser = argparse.ArgumentParser(
@@ -158,6 +168,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_team_argument(closed_parser)
     add_date_range_arguments(closed_parser)
     add_jql_argument(closed_parser)
+    add_stats_only_argument(closed_parser)
 
     kpi_parser = subparsers.add_parser(
         CLICommands.KPI,
@@ -168,6 +179,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_team_argument(kpi_parser)
     add_date_range_arguments(kpi_parser)
     add_jql_argument(kpi_parser)
+    add_stats_only_argument(kpi_parser)
 
     created_parser = subparsers.add_parser(
         CLICommands.CREATED,
@@ -178,6 +190,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_team_argument(created_parser)
     add_date_range_arguments(created_parser)
     add_jql_argument(created_parser)
+    add_stats_only_argument(created_parser)
 
     in_progress_parser = subparsers.add_parser(
         CLICommands.IN_PROGRESS,
@@ -187,6 +200,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_user_argument(in_progress_parser, "responsible")
     add_team_argument(in_progress_parser)
     add_jql_argument(in_progress_parser)
+    add_stats_only_argument(in_progress_parser)
 
     report_parser = subparsers.add_parser(
         CLICommands.REPORT,

@@ -94,7 +94,7 @@ class App:
         user = self._users_client.get_user(responsible)
         jql = self._jql_client.closed_issues(user, date_range)
         fields = self._get_fields(with_summary)
-        return self._get_issue_group(jql, fields, user=user)
+        return self._get_issue_group(jql, fields, user=user, date_range=date_range)
 
     def get_in_progress_issues(
         self,
@@ -117,7 +117,7 @@ class App:
         user = self._users_client.get_user(responsible)
         jql = self._jql_client.kpi_tracked_issues(user, date_range)
         fields = self._get_fields(with_summary)
-        return self._get_issue_group(jql, fields, user=user)
+        return self._get_issue_group(jql, fields, user=user, date_range=date_range)
 
     def get_created_issues(
         self,

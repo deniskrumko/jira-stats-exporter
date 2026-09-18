@@ -190,6 +190,15 @@ def test_parser_reads_jql_flag(command: str) -> None:
     assert args.jql is True
 
 
+@pytest.mark.parametrize("command", ["closed", "kpi", "created", "inprogress"])
+@pytest.mark.parametrize("flag", ["-s", "--stats-only"])
+def test_parser_reads_stats_only_flag(command: str, flag: str) -> None:
+    """Enable statistics-only output for issue-list commands."""
+    args = build_parser().parse_args([command, flag])
+
+    assert args.stats_only is True
+
+
 def test_parser_reads_report_team_and_date_range() -> None:
     """Read team and date range options for the report command."""
     args = build_parser().parse_args(["report", "--team", "ml", "--week", "0"])
@@ -303,7 +312,7 @@ def test_created_command_requests_and_prints_created_issues(capsys) -> None:
         )
     ]
     output = capsys.readouterr().out
-    assert "2026-05-01 – 2026-05-31" in output
+    assert "User: krumko\nDate Range: 2026-05-01 – 2026-05-31" in output
     assert "ML-1234" in output
 
 
@@ -340,6 +349,7 @@ def test_closed_command_requests_closed_issues(capsys) -> None:
         )
     ]
     output = capsys.readouterr().out
+    assert "User: krumko\nDate Range: 2026-05-01 – 2026-05-31" in output
     assert "Avg TTM: 1h 0m" in output
     assert "ML-1234" in output
 
@@ -361,6 +371,7 @@ def test_kpi_command_requests_kpi_tracked_issues(capsys) -> None:
         )
     ]
     output = capsys.readouterr().out
+    assert "User: krumko\nDate Range: 2026-05-01 – 2026-05-31" in output
     assert "Avg TTM: 1h 0m" in output
     assert "ML-1234" in output
 
@@ -373,7 +384,50 @@ def test_in_progress_command_requests_in_progress_issues(capsys) -> None:
     CLIApp(app).run(args)
 
     assert app.in_progress_calls == ["krumko"]
-    assert "ML-1234" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "Date Range:" not in output
+    assert "ML-1234" in output
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["closed", "--from", "2026-05-01", "--to", "2026-05-31"],
+        ["kpi", "--from", "2026-05-01", "--to", "2026-05-31"],
+        ["created", "--from", "2026-05-01", "--to", "2026-05-31"],
+        ["inprogress"],
+    ],
+)
+def test_stats_only_hides_issue_details(arguments: list[str], capsys) -> None:
+    """Hide issue details while keeping command statistics."""
+    args = build_parser().parse_args([*arguments, "--stats-only"])
+
+    CLIApp(FakeApp()).run(args)
+
+    output = capsys.readouterr().out
+    assert "User: me" in output
+    assert "ML-1234" not in output
+
+
+def test_stats_only_keeps_statistics(capsys) -> None:
+    """Keep issue count and metrics in statistics-only output."""
+    args = build_parser().parse_args(
+        [
+            "closed",
+            "--from",
+            "2026-05-01",
+            "--to",
+            "2026-05-31",
+            "--stats-only",
+        ]
+    )
+
+    CLIApp(FakeApp()).run(args)
+
+    output = capsys.readouterr().out
+    assert "Date Range: 2026-05-01 – 2026-05-31" in output
+    assert "Issues: 1" in output
+    assert "Avg TTM: 1h 0m" in output
 
 
 @pytest.mark.parametrize(

@@ -49,11 +49,11 @@ class CLIPrinter:
         show_details: bool = True,
     ) -> None:
         """Print Jira issue group statistics and details."""
-        if show_date_range and issue_group.date_range:
-            print_stat("Date Range", issue_group.date_range.colored_string, value_color=None)
-
         if show_user and issue_group.user:
             print_stat("User", issue_group.user)
+
+        if show_date_range and issue_group.date_range:
+            print_stat("Date Range", issue_group.date_range.colored_string, value_color=None)
 
         if show_issues_number:
             self._print_issues_number(issue_group)

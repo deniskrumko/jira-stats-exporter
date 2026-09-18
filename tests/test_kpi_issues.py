@@ -32,6 +32,7 @@ def test_kpi_returns_issue_links_and_average_ttm() -> None:
         "Time in Review": 1200,
         "Time in Resolved": 600,
     }
+    assert issue_group.date_range == date_range
     assert api_client.search_calls[0]["fields"] == [
         "key",
         "summary",
