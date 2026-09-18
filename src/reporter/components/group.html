@@ -1,4 +1,4 @@
-<h2>Tasks in status "{{ group_title }}" ({{ issue_group.count }})</h2>
+<h2 id="{{ group_id }}">{{ group_title }} ({{ issue_group.count }})</h2>
 {% if issue_group.issues %}
 <div class="issues">
 {% for issue in issue_group.issues %}

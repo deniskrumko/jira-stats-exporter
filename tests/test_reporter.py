@@ -27,10 +27,12 @@ def test_app_returns_complete_report_data() -> None:
     report = app.get_report_data("me", date_range, progress_messages.append)
 
     assert report.user.username == "krumko"
-    assert len(api_client.search_calls) == 3
+    assert len(api_client.search_calls) == 4
     assert "resolution changed during" in api_client.search_calls[0]["jql"]
-    assert "status in" in api_client.search_calls[1]["jql"]
-    assert 'created >= "2026-05-01"' in api_client.search_calls[2]["jql"]
+    assert "AND TTM > 1200" in api_client.search_calls[1]["jql"]
+    assert "status changed during" in api_client.search_calls[1]["jql"]
+    assert "status in" in api_client.search_calls[2]["jql"]
+    assert 'created >= "2026-05-01"' in api_client.search_calls[3]["jql"]
     expected_fields = [
         "key",
         "summary",
@@ -57,11 +59,15 @@ def test_app_returns_complete_report_data() -> None:
     assert report.closed.issues[0].epic_link == "ML-2161"
     assert report.closed.issues[0].epic_url == "https://jira.example.test/browse/ML-2161"
     assert report.closed.issues[0].labels == ["backend", "priority"]
+    assert report.kpi.issues[0].labels == ["backend", "priority"]
+    assert report.kpi.issues[0].metrics == report.closed.issues[0].metrics
     assert api_client.issue_calls == ["ML-2161"]
     assert report.created.date_range == date_range
     assert report.in_progress.date_range is None
+    assert report.in_progress.jql == api_client.search_calls[2]["jql"]
     assert progress_messages == [
         "krumko: Loading closed issues",
+        "krumko: Loading KPI tracked issues",
         "krumko: Loading in-progress issues",
         "krumko: Loading created issues",
     ]
@@ -102,6 +108,7 @@ def test_html_reporter_writes_safe_complete_report(tmp_path: Path) -> None:
     user_report = UserReport(
         user=User(username="krumko"),
         closed=group,
+        kpi=group,
         in_progress=empty_group,
         created=group,
     )
@@ -118,13 +125,21 @@ def test_html_reporter_writes_safe_complete_report(tmp_path: Path) -> None:
     assert path.suffix == ".html"
     html = path.read_text(encoding="utf-8")
     assert "2026-05-01 — 2026-05-07" in html
-    assert 'Tasks in status "Closed" (1)' in html
-    assert 'Tasks in status "In progress" (0)' in html
-    assert 'Tasks in status "Created" (1)' in html
+    assert '<h2 id="user-1-kpi">KPI (1)</h2>' in html
+    assert '<h2 id="user-1-in-progress">In progress (0)</h2>' in html
+    assert '<h2 id="user-1-created">Created (1)</h2>' in html
+    assert '<h2 id="user-1-closed">Closed (1)</h2>' in html
+    assert html.index("KPI (1)</h2>") < html.index("In progress (0)</h2>")
+    assert html.index("In progress (0)</h2>") < html.index("Created (1)</h2>")
+    assert html.index("Created (1)</h2>") < html.index("Closed (1)</h2>")
     assert "Fix &lt;script&gt;alert(1)&lt;/script&gt;" in html
     assert "User krumko" in html
     assert '<aside class="user-navigation">' in html
     assert 'href="#user-1">krumko</a>' in html
+    assert 'href="#user-1-kpi">KPI (1)</a>' in html
+    assert 'href="#user-1-in-progress">In progress (0)</a>' in html
+    assert 'href="#user-1-created">Created (1)</a>' in html
+    assert 'href="#user-1-closed">Closed (1)</a>' in html
     assert '<section id="user-1" class="user">' in html
     assert '<h1 class="user-title">User krumko</h1>' in html
     assert 'target="_blank" rel="noopener noreferrer">ML-1</a>' in html
@@ -134,6 +149,19 @@ def test_html_reporter_writes_safe_complete_report(tmp_path: Path) -> None:
     assert "📎 attachment.png" in html
     assert 'class="attachment"' in html
     assert "thumbnail!" not in html
+    assert html.count('<details class="description-details">') == 3
+    assert html.count("<summary>Show task description</summary>") == 3
+    assert "<details open" not in html
+    kpi_html = html.split('<h2 id="user-1-kpi">KPI (1)</h2>', 1)[1].split(
+        '<h2 id="user-1-in-progress">In progress (0)</h2>', 1
+    )[0]
+    assert "Fix &lt;script&gt;alert(1)&lt;/script&gt;" in kpi_html
+    assert "Assignee: John Doe / Creator: Jane Doe" in kpi_html
+    assert ">Platform epic</a>" in kpi_html
+    assert '<span class="label">backend</span>' in kpi_html
+    assert "1d 1h 1m" in kpi_html
+    assert '<details class="description-details">' in kpi_html
+    assert "Read <a href=" in kpi_html
     assert ">Platform epic</a>" in html
     assert 'href="https://jira.example.test/browse/ML-2161" target="_blank"' in html
     assert '<span class="label">backend</span>' in html
@@ -160,6 +188,7 @@ def test_html_reporter_shows_missing_labels(tmp_path: Path) -> None:
     report = UserReport(
         user=User(username="krumko"),
         closed=group,
+        kpi=IssueGroup(issues=[]),
         in_progress=IssueGroup(issues=[]),
         created=IssueGroup(issues=[]),
     )
@@ -172,6 +201,43 @@ def test_html_reporter_shows_missing_labels(tmp_path: Path) -> None:
 
     assert '<span class="no-labels">No labels</span>' in html
     assert '<div class="epic no-epic">Task has no parent task or epic link</div>' in html
+    assert '<div class="no-description">Task has no description</div>' in html
+    assert "<summary>Show task description</summary>" not in html
+    assert '<div class="metrics">' not in html
+
+
+def test_html_reporter_shows_zero_metric_and_hides_all_empty_metrics(
+    tmp_path: Path,
+) -> None:
+    """Show zero as a metric and hide metrics when every value is missing."""
+    date_range = DateRange(start=date(2026, 5, 1), end=date(2026, 5, 7))
+    issue_with_zero = Issue(
+        raw={"key": "ML-1", "fields": {}},
+        metrics={"TTM": 0, "Time in Progress": None},
+    )
+    issue_without_metrics = Issue(
+        raw={"key": "ML-2", "fields": {}},
+        metrics={metric: None for metric in TIME_METRICS},
+    )
+    report = UserReport(
+        user=User(username="krumko"),
+        closed=IssueGroup(issues=[]),
+        kpi=IssueGroup(issues=[issue_with_zero, issue_without_metrics]),
+        in_progress=IssueGroup(issues=[]),
+        created=IssueGroup(issues=[]),
+    )
+    reporter = HTMLReporter(
+        lambda _user, _date_range, _progress: report,
+        output_dir=tmp_path,
+    )
+
+    html = reporter.create_report(["me"], date_range).read_text(encoding="utf-8")
+    first_issue_html = html.split("ML-1", 1)[1].split("ML-2", 1)[0]
+    second_issue_html = html.split("ML-2", 1)[1]
+
+    assert '<div class="metrics">' in first_issue_html
+    assert "0m" in first_issue_html
+    assert '<div class="metrics">' not in second_issue_html
 
 
 def test_html_reporter_shows_parent_task_before_epic(tmp_path: Path) -> None:
@@ -189,6 +255,7 @@ def test_html_reporter_shows_parent_task_before_epic(tmp_path: Path) -> None:
     report = UserReport(
         user=User(username="krumko"),
         closed=group,
+        kpi=IssueGroup(issues=[]),
         in_progress=IssueGroup(issues=[]),
         created=IssueGroup(issues=[]),
     )

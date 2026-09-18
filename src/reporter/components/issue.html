@@ -15,12 +15,21 @@
     <span class="no-labels">No labels</span>
 {% endif %}
   </div>
-  <div class="description">{{ render_jira_markup(issue.description, issue.url) | safe }}</div>
-  <div class="metrics">
+{% if issue.description and issue.description.strip() %}
+  <details class="description-details">
+    <summary>Show task description</summary>
+    <div class="description">{{ render_jira_markup(issue.description, issue.url) | safe }}</div>
+  </details>
+{% else %}
+  <div class="no-description">Task has no description</div>
+{% endif %}
 {% set metrics = issue.metrics or {} %}
+{% if metrics.values() | reject("none") | list %}
+  <div class="metrics">
 {% for metric_name in time_metrics %}
 {% set seconds = metrics.get(metric_name) %}
     <div class="metric"><span>{{ metric_name }}</span>{{ "—" if seconds is none else format_duration(seconds) }}</div>
 {% endfor %}
   </div>
+{% endif %}
 </article>

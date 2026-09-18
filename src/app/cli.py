@@ -64,6 +64,7 @@ class CLIApp:
             CLICommands.ISSUE: self._show_issue_command,
             CLICommands.CURRENT: self._show_current_issue_command,
             CLICommands.CLOSED: self._show_closed,
+            CLICommands.KPI: self._show_kpi,
             CLICommands.CREATED: self._show_created,
             CLICommands.IN_PROGRESS: self._show_in_progress,
             CLICommands.REPORT: self._show_report,
@@ -147,10 +148,31 @@ class CLIApp:
 
         if team:
             self._printer.print_team_summary(issue_groups)
+        if args.jql:
+            self._printer.print_jql(issue_groups)
+
+    def _show_kpi(self, args: argparse.Namespace) -> None:
+        """Show KPI-tracked issues."""
+        date_range = self._resolve_date_range(args)
+        issue_groups, team = self._show_for_users(
+            args,
+            lambda user: self.app.get_kpi_tracked_issues(
+                user,
+                date_range,
+            ),
+            lambda issue_group: self._printer.print_issue_group(
+                issue_group,
+            ),
+        )
+
+        if team:
+            self._printer.print_team_summary(issue_groups)
+        if args.jql:
+            self._printer.print_jql(issue_groups)
 
     def _show_in_progress(self, args: argparse.Namespace) -> None:
         """Show in-progress issues."""
-        self._show_for_users(
+        issue_groups, _ = self._show_for_users(
             args,
             self.app.get_in_progress_issues,
             lambda issue_group: self._printer.print_issue_group(
@@ -159,11 +181,13 @@ class CLIApp:
                 show_metrics=False,
             ),
         )
+        if args.jql:
+            self._printer.print_jql(issue_groups)
 
     def _show_created(self, args: argparse.Namespace) -> None:
         """Show issues created by a user during a date range."""
         date_range = self._resolve_date_range(args)
-        self._show_for_users(
+        issue_groups, _ = self._show_for_users(
             args,
             lambda user: self.app.get_created_issues(user, date_range),
             lambda issue_group: self._printer.print_issue_group(
@@ -171,6 +195,8 @@ class CLIApp:
                 show_metrics=False,
             ),
         )
+        if args.jql:
+            self._printer.print_jql(issue_groups)
 
     def _show_report(self, args: argparse.Namespace) -> None:
         """Create and open an HTML report."""

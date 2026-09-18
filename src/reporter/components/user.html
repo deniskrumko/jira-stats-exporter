@@ -1,12 +1,19 @@
 <section id="{{ user_id }}" class="user">
   <h1 class="user-title">User {{ report.user.username }}</h1>
-{% set group_title = "Closed" %}
-{% set issue_group = report.closed %}
+{% set group_title = "KPI" %}
+{% set group_id = user_id ~ "-kpi" %}
+{% set issue_group = report.kpi %}
 {% include "group.html" %}
 {% set group_title = "In progress" %}
+{% set group_id = user_id ~ "-in-progress" %}
 {% set issue_group = report.in_progress %}
 {% include "group.html" %}
 {% set group_title = "Created" %}
+{% set group_id = user_id ~ "-created" %}
 {% set issue_group = report.created %}
+{% include "group.html" %}
+{% set group_title = "Closed" %}
+{% set group_id = user_id ~ "-closed" %}
+{% set issue_group = report.closed %}
 {% include "group.html" %}
 </section>

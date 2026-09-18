@@ -22,6 +22,7 @@ class CLICommands(StrEnum):
     ISSUE = "issue"
     CURRENT = "cur"
     CLOSED = "closed"
+    KPI = "kpi"
     CREATED = "created"
     IN_PROGRESS = "inprogress"
     REPORT = "report"
@@ -129,6 +130,7 @@ class IssueGroup(BaseModel):
     """Jira issues and aggregate timing stats."""
 
     issues: list[Issue]
+    jql: str | None = None
     user: User | None = None
     date_range: DateRange | None = None
     metrics: dict[str, list[int]] | None = None

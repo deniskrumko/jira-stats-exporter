@@ -16,6 +16,7 @@ IN_PROGRESS_STATUSES = (
     "In progress",
     "Research",
 )
+KPI_TTM_MINUTES = 20 * 60
 
 
 class JQLClient:
@@ -31,6 +32,17 @@ class JQLClient:
             "AND resolution changed during "
             f'("{date_range.start.isoformat()}", "{date_range.end.isoformat()}") '
             f"to ({resolutions})"
+        )
+
+    def kpi_tracked_issues(self, user: User, date_range: DateRange) -> str:
+        """Build JQL for issues that are tracked as KPI."""
+        statuses = ", ".join(self._quote_value(status) for status in DONE_STATUSES)
+        return (
+            f"Responsibles in ({self._quote_value(user.username)})\n"
+            f"AND TTM > {KPI_TTM_MINUTES}\n"
+            "AND status changed during "
+            f'("{date_range.start.isoformat()}", "{date_range.end.isoformat()}") '
+            f"to ({statuses})"
         )
 
     def in_progress_issues(self, user: User) -> str:

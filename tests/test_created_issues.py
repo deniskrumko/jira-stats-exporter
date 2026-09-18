@@ -29,3 +29,4 @@ def test_created_returns_issues_for_resolved_user_and_date_range() -> None:
     assert api_client.search_calls[0]["jql"] == (
         'creator in (turdubaev)\nAND created >= "2026-05-01"\nAND created < "2026-06-01"'
     )
+    assert issue_group.jql == api_client.search_calls[0]["jql"]

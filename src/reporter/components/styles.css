@@ -33,11 +33,24 @@ main {
     padding-bottom: 8px;
 }
 .user-navigation ul {
-    display: grid;
-    gap: 4px;
     list-style: none;
     margin: 0;
     padding: 0;
+}
+.user-navigation nav > ul {
+    display: grid;
+    gap: 4px;
+}
+.user-navigation .status-navigation {
+    border-left: 1px solid #dfe1e6;
+    display: grid;
+    gap: 4px;
+    margin: 2px 0 8px 8px;
+    padding-left: 7px;
+}
+.user-navigation .status-navigation a {
+    font-size: 0.85rem;
+    padding: 5px 8px;
 }
 .user-navigation a {
     border-radius: 6px;
@@ -69,6 +82,9 @@ h2 {
     padding-bottom: 12px;
     margin-top: 20px;
 }
+h2[id] {
+    scroll-margin-top: 88px;
+}
 h3 {
     margin-top: 28px;
 }
@@ -94,6 +110,7 @@ h3 {
 }
 .issue {
     border: 1px solid #dfe1e6;
+    background: #fcfcfc;
     border-radius: 10px;
     min-width: 0;
     padding: 18px;
@@ -156,6 +173,22 @@ h3 {
     margin-top: 14px;
     border-top: 1px solid #e7e9ec;
     padding-top: 10px;
+}
+.description-details {
+    margin-top: 14px;
+}
+.description-details summary {
+    color: #0052cc;
+    cursor: pointer;
+    font-weight: 600;
+    width: fit-content;
+}
+.description-details[open] summary {
+    margin-bottom: 10px;
+}
+.no-description {
+    color: #bf2600;
+    margin-top: 14px;
 }
 .description > :first-child {
     margin-top: 0;
@@ -284,7 +317,7 @@ h3 {
         margin-bottom: 16px;
         position: static;
     }
-    .user-navigation ul {
+    .user-navigation nav > ul {
         display: flex;
         flex-wrap: wrap;
     }
@@ -321,6 +354,12 @@ h3 {
     }
     .no-epic {
         color: #ffb4a8;
+    }
+    .no-description {
+        color: #ffb4a8;
+    }
+    .user-navigation .status-navigation {
+        border-left-color: #444c56;
     }
     .description blockquote {
         border-left-color: #636e7b;

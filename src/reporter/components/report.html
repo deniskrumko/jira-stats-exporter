@@ -19,7 +19,16 @@
     <nav aria-label="Report users">
       <ul>
 {% for report in reports %}
-        <li><a href="#user-{{ loop.index }}">{{ report.user.username }}</a></li>
+{% set navigation_user_id = "user-" ~ loop.index %}
+        <li>
+          <a href="#{{ navigation_user_id }}">{{ report.user.username }}</a>
+          <ul class="status-navigation">
+            <li><a href="#{{ navigation_user_id }}-kpi">KPI ({{ report.kpi.count }})</a></li>
+            <li><a href="#{{ navigation_user_id }}-in-progress">In progress ({{ report.in_progress.count }})</a></li>
+            <li><a href="#{{ navigation_user_id }}-created">Created ({{ report.created.count }})</a></li>
+            <li><a href="#{{ navigation_user_id }}-closed">Closed ({{ report.closed.count }})</a></li>
+          </ul>
+        </li>
 {% endfor %}
       </ul>
     </nav>

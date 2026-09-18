@@ -78,6 +78,16 @@ class CLIPrinter:
         print(f"\n[bold green]Total tasks: {total_tasks}\nAverage TTM: {avg_ttm}[/]")
 
     @staticmethod
+    def print_jql(issue_groups: list[IssueGroup]) -> None:
+        """Print generated JQL queries after command output."""
+        show_users = len(issue_groups) > 1
+        for issue_group in issue_groups:
+            if issue_group.jql is None:
+                continue
+            user = f" ({escape(str(issue_group.user))})" if show_users else ""
+            print(f"\n[bold]JQL{user}:[/]\n{escape(issue_group.jql)}")
+
+    @staticmethod
     def print_separator() -> None:
         """Print a separator between user results."""
         print()

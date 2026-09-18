@@ -9,5 +9,6 @@ class UserReport(BaseModel):
 
     user: User
     closed: IssueGroup
+    kpi: IssueGroup
     in_progress: IssueGroup
     created: IssueGroup

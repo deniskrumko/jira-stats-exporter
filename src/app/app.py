@@ -107,6 +107,18 @@ class App:
         fields = self._get_fields(with_summary)
         return self._get_issue_group(jql, fields, user=user)
 
+    def get_kpi_tracked_issues(
+        self,
+        responsible: str,
+        date_range: DateRange,
+        with_summary: bool = True,
+    ) -> IssueGroup:
+        """Return KPI-tracked issues for a responsible user during a date range."""
+        user = self._users_client.get_user(responsible)
+        jql = self._jql_client.kpi_tracked_issues(user, date_range)
+        fields = self._get_fields(with_summary)
+        return self._get_issue_group(jql, fields, user=user)
+
     def get_created_issues(
         self,
         creator: str,
@@ -143,6 +155,14 @@ class App:
             date_range=date_range,
             epic_field=epic_field,
         )
+        self._notify_report_progress(progress, user, "Loading KPI tracked issues")
+        kpi = self._get_issue_group(
+            self._jql_client.kpi_tracked_issues(user, date_range),
+            fields,
+            user=user,
+            date_range=date_range,
+            epic_field=epic_field,
+        )
         self._notify_report_progress(progress, user, "Loading in-progress issues")
         in_progress = self._get_issue_group(
             self._jql_client.in_progress_issues(user),
@@ -161,6 +181,7 @@ class App:
         return UserReport(
             user=user,
             closed=closed,
+            kpi=kpi,
             in_progress=in_progress,
             created=created,
         )
@@ -264,6 +285,7 @@ class App:
                     issue_results.append(issue_result)
 
         return IssueGroup(
+            jql=jql,
             user=user,
             date_range=date_range,
             issues=issue_results,

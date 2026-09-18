@@ -31,6 +31,22 @@ def test_closed_issues_quotes_responsible_when_needed() -> None:
     assert jql.startswith('Responsibles in ("john smith")')
 
 
+def test_kpi_tracked_issues_builds_jql() -> None:
+    """Build JQL for KPI-tracked issues."""
+    jql = JQLClient().kpi_tracked_issues(
+        User(username="krumko"),
+        DateRange(start=date(2026, 5, 1), end=date(2026, 5, 31)),
+    )
+
+    assert jql == (
+        "Responsibles in (krumko)\n"
+        "AND TTM > 1200\n"
+        'AND status changed during ("2026-05-01", "2026-05-31") '
+        'to (Closed, "Deployed to production", "On Approval", Introduction, '
+        '"Ready for Deploy", "Beta Testing")'
+    )
+
+
 def test_created_issues_builds_jql() -> None:
     """Build JQL for issues created by a user."""
     jql = JQLClient().created_issues(

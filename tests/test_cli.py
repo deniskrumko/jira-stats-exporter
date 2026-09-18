@@ -1,6 +1,8 @@
 from pathlib import Path
 from subprocess import CompletedProcess
 
+import pytest
+
 from app.cli import DEFAULT_TEAM_MARKER, CLIApp, build_parser
 from app.resources import Issue, IssueGroup
 from core.date_ranges import DateRange
@@ -12,12 +14,19 @@ from users import User
 class FakeApp:
     """Provide issue data for CLI tests."""
 
-    def __init__(self, empty_closed: bool = False, with_epic: bool = True) -> None:
+    def __init__(
+        self,
+        empty_closed: bool = False,
+        empty_kpi: bool = False,
+        with_epic: bool = True,
+    ) -> None:
         """Initialize class instance."""
         self.created_calls: list[tuple[str, DateRange]] = []
         self.closed_calls: list[tuple[str, DateRange, bool]] = []
+        self.kpi_calls: list[tuple[str, DateRange, bool]] = []
         self.in_progress_calls: list[str] = []
         self.empty_closed = empty_closed
+        self.empty_kpi = empty_kpi
         self.with_epic = with_epic
 
     def me(self) -> dict[str, str]:
@@ -48,6 +57,7 @@ class FakeApp:
         self.created_calls.append((creator, date_range))
         return IssueGroup(
             issues=[self.issue("ML-1234")],
+            jql=f"created JQL for {creator}",
             user=User(username=creator),
             date_range=date_range,
         )
@@ -63,6 +73,7 @@ class FakeApp:
         issues = [] if self.empty_closed else [self.issue("ML-1234")]
         return IssueGroup(
             issues=issues,
+            jql=f"closed JQL for {responsible}",
             user=User(username=responsible),
             date_range=date_range,
             metrics={"TTM": [] if self.empty_closed else [3600]},
@@ -73,7 +84,25 @@ class FakeApp:
         self.in_progress_calls.append(assignee)
         return IssueGroup(
             issues=[self.issue("ML-1234")],
+            jql=f"in-progress JQL for {assignee}",
             user=User(username=assignee),
+        )
+
+    def get_kpi_tracked_issues(
+        self,
+        responsible: str,
+        date_range: DateRange,
+        with_summary: bool = True,
+    ) -> IssueGroup:
+        """Return fake KPI-tracked issues for a user."""
+        self.kpi_calls.append((responsible, date_range, with_summary))
+        issues = [] if self.empty_kpi else [self.issue("ML-1234")]
+        return IssueGroup(
+            issues=issues,
+            jql=f"KPI JQL for {responsible}",
+            user=User(username=responsible),
+            date_range=date_range,
+            metrics={"TTM": [] if self.empty_kpi else [3600]},
         )
 
     def get_team(self, shortcut: str | None = None) -> Team:
@@ -139,6 +168,26 @@ def test_parser_reads_created_team() -> None:
     args = build_parser().parse_args(["created", "--team", "ml", "--month", "0"])
 
     assert args.team == "ml"
+
+
+def test_parser_reads_kpi_user_and_date_range() -> None:
+    """Read responsible user and explicit date range for the KPI command."""
+    args = build_parser().parse_args(
+        ["kpi", "--user", "krumko", "--from", "2026-05-01", "--to", "2026-05-31"]
+    )
+
+    assert args.command == "kpi"
+    assert args.user == "krumko"
+    assert args.from_date == "2026-05-01"
+    assert args.to_date == "2026-05-31"
+
+
+@pytest.mark.parametrize("command", ["closed", "kpi", "created", "inprogress"])
+def test_parser_reads_jql_flag(command: str) -> None:
+    """Enable generated JQL output for issue-list commands."""
+    args = build_parser().parse_args([command, "--jql"])
+
+    assert args.jql is True
 
 
 def test_parser_reads_report_team_and_date_range() -> None:
@@ -295,6 +344,27 @@ def test_closed_command_requests_closed_issues(capsys) -> None:
     assert "ML-1234" in output
 
 
+def test_kpi_command_requests_kpi_tracked_issues(capsys) -> None:
+    """Dispatch KPI-tracked issues through the shared user workflow."""
+    app = FakeApp()
+    args = build_parser().parse_args(
+        ["kpi", "-u", "krumko", "--from", "2026-05-01", "--to", "2026-05-31"]
+    )
+
+    CLIApp(app).run(args)
+
+    assert app.kpi_calls == [
+        (
+            "krumko",
+            DateRange(start="2026-05-01", end="2026-05-31"),
+            True,
+        )
+    ]
+    output = capsys.readouterr().out
+    assert "Avg TTM: 1h 0m" in output
+    assert "ML-1234" in output
+
+
 def test_in_progress_command_requests_in_progress_issues(capsys) -> None:
     """Dispatch in-progress issues through the shared user workflow."""
     app = FakeApp()
@@ -304,6 +374,33 @@ def test_in_progress_command_requests_in_progress_issues(capsys) -> None:
 
     assert app.in_progress_calls == ["krumko"]
     assert "ML-1234" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    ("arguments", "expected_jql"),
+    [
+        (["closed", "--from", "2026-05-01", "--to", "2026-05-31"], "closed JQL for me"),
+        (["kpi", "--from", "2026-05-01", "--to", "2026-05-31"], "KPI JQL for me"),
+        (
+            ["created", "--from", "2026-05-01", "--to", "2026-05-31"],
+            "created JQL for me",
+        ),
+        (["inprogress"], "in-progress JQL for me"),
+    ],
+)
+def test_issue_list_commands_print_jql_at_end(
+    arguments: list[str],
+    expected_jql: str,
+    capsys,
+) -> None:
+    """Print the generated JQL after the regular command output."""
+    args = build_parser().parse_args([*arguments, "--jql"])
+
+    CLIApp(FakeApp()).run(args)
+
+    output = capsys.readouterr().out
+    assert "JQL:" in output
+    assert output.rstrip().endswith(expected_jql)
 
 
 def test_closed_team_with_no_issues_prints_zero_average(capsys) -> None:
@@ -318,6 +415,43 @@ def test_closed_team_with_no_issues_prints_zero_average(capsys) -> None:
     output = capsys.readouterr().out
     assert "Total tasks: 0" in output
     assert "Average TTM: 0h 0m" in output
+
+
+def test_kpi_team_with_no_issues_prints_zero_average(capsys) -> None:
+    """Print zero team average when no team member has a KPI-tracked issue."""
+    app = FakeApp(empty_kpi=True)
+    args = build_parser().parse_args(
+        ["kpi", "--team", "ml", "--from", "2026-05-01", "--to", "2026-05-31"]
+    )
+
+    CLIApp(app).run(args)
+
+    assert [responsible for responsible, _, _ in app.kpi_calls] == ["krumko", "pupa"]
+    output = capsys.readouterr().out
+    assert "Total tasks: 0" in output
+    assert "Average TTM: 0h 0m" in output
+
+
+def test_team_jql_output_labels_each_user(capsys) -> None:
+    """Label every generated team JQL query with its resolved user."""
+    args = build_parser().parse_args(
+        [
+            "created",
+            "--team",
+            "ml",
+            "--from",
+            "2026-05-01",
+            "--to",
+            "2026-05-31",
+            "--jql",
+        ]
+    )
+
+    CLIApp(FakeApp()).run(args)
+
+    output = capsys.readouterr().out
+    assert "JQL (krumko):\ncreated JQL for krumko" in output
+    assert output.rstrip().endswith("JQL (pupa):\ncreated JQL for pupa")
 
 
 def test_report_command_creates_and_opens_current_user_report(
