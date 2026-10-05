@@ -41,6 +41,7 @@ def test_kpi_tracked_issues_builds_jql() -> None:
     assert jql == (
         "Responsibles in (krumko)\n"
         "AND TTM > 1200\n"
+        "AND TTM <= 7200\n"
         'AND status changed during ("2026-05-01", "2026-05-31") '
         'to (Closed, "Deployed to production", "On Approval", Introduction, '
         '"Ready for Deploy", "Beta Testing")'

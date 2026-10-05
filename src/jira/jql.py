@@ -17,6 +17,7 @@ IN_PROGRESS_STATUSES = (
     "Research",
 )
 KPI_TTM_MINUTES = 20 * 60
+KPI_TTM_MAX_MINUTES = 120 * 60
 
 
 class JQLClient:
@@ -40,6 +41,7 @@ class JQLClient:
         return (
             f"Responsibles in ({self._quote_value(user.username)})\n"
             f"AND TTM > {KPI_TTM_MINUTES}\n"
+            f"AND TTM <= {KPI_TTM_MAX_MINUTES}\n"
             "AND status changed during "
             f'("{date_range.start.isoformat()}", "{date_range.end.isoformat()}") '
             f"to ({statuses})"
